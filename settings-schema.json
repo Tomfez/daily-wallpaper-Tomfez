@@ -1,0 +1,32 @@
+{
+    "settings_test_scale": {
+        "default": 10,
+        "description": "Scale test",
+        "max": 400,
+        "min": 2,
+        "step": 1,
+        "type": "scale"
+    },
+    "saveWallpaper": {
+        "default": false,
+        "description": "Save wallpapers to images folder",
+        "tooltip": "Save wallpapers to images folder",
+        "type": "checkbox"
+    },
+    "wallpaperDir": {
+        "type": "filechooser",
+        "select-dir": true,
+        "default": "",
+        "description": "Specify path of the wallpaper directory",
+        "tooltip": "For example: /home/username/Pictures/wallpapers"
+    },
+    "refreshInterval": {
+        "default": 350,
+        "description": "Update interval to check new wallpaper",
+        "max": 3600,
+        "min": 3,
+        "step": 1,
+        "type": "spinbutton",
+        "units": "Seconds"
+    }
+}
