@@ -7,6 +7,7 @@ const Mainloop = imports.mainloop;
 const Lang = imports.lang;
 const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.js
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
+const currentDateFormatted = GLib.DateTime.new_now_utc().format("%Y-%m-%d");
 
 const logging = true;
 
@@ -15,13 +16,6 @@ const SettingsMap = {
     wallpaperDir: "Wallpaper path",
     saveWallpaper: false,
     refreshInterval: 0
-};
-
-let opt = {
-    debug: global.DEBUG,
-    saveWallpaper: false,
-    autoUpdate: false,
-    refreshInterval: 20
 };
 
 let _httpSession;
@@ -62,10 +56,29 @@ BingWallpaperApplet.prototype = {
         this.wallpaperPath = `${this.wallpaperDir}/BingWallpaper.jpg`;
         this.metaDataPath = `${this.wallpaperDir}/meta.json`;
 
+        // Begin refresh loop
+        this._refresh();
+
         // Create a popup menu
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
+
+        // const lastRefresh = new PopupMenu.PopupMenuItem(`Refreshed ${SettingsMap["refreshInterval"]} min ago`);
+        const text1 = new PopupMenu.PopupMenuItem(`Bing wallpaper of the day for ${currentDateFormatted}`, {
+            hover: false,
+            style_class: 'text-popupmenu'
+        });
+        this.menu.addMenuItem(text1, 0);
+
+        const text2 = new PopupMenu.PopupMenuItem(this.imageData.copyright, {
+            hover: false,
+            style_class: 'text-popupmenu'
+        });
+
+        this.menu.addMenuItem(text2, 1);
+
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // Add a menu element
         // First argument is the text of the menu element, the second a callback function to execute when the element is clicked.
@@ -78,18 +91,21 @@ BingWallpaperApplet.prototype = {
             global.log(_("Menu element 2 clicked"));
         });
 
+        // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
+
 
         // Create and add a switch to the context menu.
         this.context_menu_switch_test = new PopupMenu.PopupSwitchMenuItem(_("Suspend update"), false);
-        this._applet_context_menu.addMenuItem(this.context_menu_switch_test);
+        this.menu.addMenuItem(this.context_menu_switch_test);
 
         // Connect the toggle event of the switch to its callback.
         this.context_menu_switch_test.connect('toggled', Lang.bind(this, this.on_toggle_context_menu_switch_test));
-        this._saveWallpaperToImageFolder();
+
+        if (this.saveWallpaper)
+            this._saveWallpaperToImageFolder();
 
         global.log(SettingsMap);
-        // Begin refresh loop
-        this._refresh();
+
     },
 
     on_toggle_context_menu_switch_test: function () {
@@ -107,13 +123,13 @@ BingWallpaperApplet.prototype = {
     _refresh: function () {
         log(`Beginning refresh`);
         this._getMetaData();
-        this._setTimeout(300);
+        this._setTimeout(SettingsMap["refreshInterval"]);
     },
 
     _removeTimeout: function () {
-        if (this._timeout) {
-            Mainloop.source_remove(this._timeout);
-            this._timeout = null;
+        if (SettingsMap["refreshInterval"]) {
+            Mainloop.source_remove(SettingsMap["refreshInterval"]);
+            SettingsMap["refreshInterval"] = null;
         }
     },
 
@@ -121,7 +137,7 @@ BingWallpaperApplet.prototype = {
         /** Cancel current timeout in event of an error and try again shortly */
         this._removeTimeout();
         log(`Setting timeout (${seconds}s)`);
-        this._timeout = Mainloop.timeout_add_seconds(seconds, Lang.bind(this, this._refresh));
+        SettingsMap["refreshInterval"] = Mainloop.timeout_add_seconds(seconds, Lang.bind(this, this._refresh));
     },
 
     destroy: function () {
@@ -333,30 +349,9 @@ BingWallpaperApplet.prototype = {
         //     this.onSettingsChanged,                    // Method to be called when the setting value changes.
         //     null                                       // Optional - it can be left off entirely, or used to pass any extra object to the callback if desired.
         // );
-
-        // this._settings.bindProperty(Settings.BindingDirection.IN,
-        //     "refreshInterval",
-        //     "refreshInterval",
-        //     this.on_setting_change.bind(this, {key: 'refreshInterval'}));
-
-
-        // this._settings.bind('saveWallpaper', 'saveWallpaper', this.on_setting_change.bind(this), {key: 'saveWallpaper'});
-        // this._settings.bind('refreshInterval', 'refreshInterval', this.on_setting_change.bind(this), {key: 'refreshInterval'});
-
     },
 
     _property_changed: function (key) {
-        // global.log(_("The new value of " + key + " is: " + this._settings.getValue(key)));
-        // this._removeTimeout();
-        // if (key === "wallpaperDir") {
-        //     // this.initialize_wallpaper_dir();
-        //     if (this.wallpaperDir.startsWith("file://")) {
-        //         this.wallpaperDir = this.wallpaperDir.slice("file://".length);
-        //     }
-
-        //     global.log("new wallpaperDir: " + this.wallpaperDir);
-        // }
-
         switch (key) {
             case "wallpaperDir":
                 if (this.wallpaperDir.startsWith("file://")) {
@@ -372,7 +367,11 @@ BingWallpaperApplet.prototype = {
 
                 if (this.saveWallpaper)
                     this._saveWallpaperToImageFolder();
-
+                break;
+            case "refreshInterval":
+                const newTimeout = this._settings.getValue(key);
+                global.log(newTimeout);
+                this._setTimeout(newTimeout);
                 break;
             default:
                 break;
@@ -393,32 +392,16 @@ BingWallpaperApplet.prototype = {
 
         const currentDate = new Date();
 
-        // const dateFormated = currentDate.toISOString().split('T')[0];
         const dateFormated = currentDate.toISOString().split('T')[0].replaceAll('-', '')
-        // const dateFormated = currentDate.getFullYear().toString() + currentDate.getMonth().toString() + currentDate.getUTCDay().toString();
-        // global.log("line 396 " + dateFormated);
-        // global.log("line 399 " + picturesDir);
 
         let imagePath = GLib.build_filenamev([picturesDir, `BingWallpapers/BingWallpaper_${dateFormated}.jpg`]);
-        // const imagePath = Gio.file_new_for_path(`${picturesDir}/BingWallpapers/BingWallpaper_${dateFormated}.jpg`);
-        global.log("line 400 " + imagePath);
 
         imagePath = Gio.file_new_for_path(imagePath);
-        // global.log("line 400 " + imagePath.query_exists(null));
-
-        // global.log("line 400 " + imagePath);
-        // global.log("line 400 " + dir);
 
         if (!imagePath.query_exists(null)) {
-            // global.log("line 399 " + imagePath);
             //Copy the file to Pictures folder
-            global.log("line 416 " + this.wallpaperPath);
 
             const source = Gio.file_new_for_path(this.wallpaperPath);
-            // const target = Gio.File.new_for_path(imagePath);
-
-            global.log("line 400 " + source);
-            global.log("line 400 " + imagePath);
 
             try {
                 source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
@@ -426,7 +409,6 @@ BingWallpaperApplet.prototype = {
             } catch (error) {
                 global.log("error: " + error);
             }
-
         }
     },
 
@@ -437,20 +419,6 @@ BingWallpaperApplet.prototype = {
         global.log(value);
         // global.log prints to the file ~/.cinnamon/glass.log. It's useful for debugging.
         global.log(_("The new value of 'settings-test-scale' is: " + this._settings.getValue('settings_test_scale')));
-    },
-
-    on_setting_change(value = '', data = { key: undefined }) {
-        // qLOG("onSettChange", value, data);
-
-        global.log("before:" + this.opt.refreshInterval);
-        const getValue = Object.values(value);
-        // global.log("data:" + data);
-        this.opt.getValue = data;
-        global.log("after:" + this.opt.refreshInterval);
-
-        // this.enabledAuto.setToggleState(this.opt.autoUpdate);
-
-        // this.doUpdate();
     }
     //#endregion
 };
