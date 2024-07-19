@@ -21,11 +21,11 @@
         "tooltip": "For example: /home/username/Pictures/wallpapers"
     },
     "refreshInterval": {
-        "default": 350,
+        "default": 300,
         "description": "Update interval to check new wallpaper",
         "max": 86400,
-        "min": 120,
-        "step": 1,
+        "min": 20,
+        "step": 5,
         "type": "spinbutton",
         "units": "Seconds"
     }

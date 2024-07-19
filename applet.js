@@ -7,10 +7,11 @@ const Mainloop = imports.mainloop;
 const Lang = imports.lang;
 const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.js
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
+const Util = imports.misc.util;
+
 const currentDateFormatted = GLib.DateTime.new_now_utc().format("%Y-%m-%d");
-
+const UUID = "bing-wallpaper@tom.dev";
 const logging = true;
-
 const SettingsMap = {
     settings_test_scale: 10,
     wallpaperDir: "Wallpaper path",
@@ -18,6 +19,7 @@ const SettingsMap = {
     refreshInterval: 0
 };
 
+let _lastRefreshTime;
 let _httpSession;
 if (Soup.MAJOR_VERSION == 2) {
     _httpSession = new Soup.SessionAsync();
@@ -59,47 +61,70 @@ BingWallpaperApplet.prototype = {
         // Begin refresh loop
         this._refresh();
 
+        // #region -- Popup menu --
+
         // Create a popup menu
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
 
-        // const lastRefresh = new PopupMenu.PopupMenuItem(`Refreshed ${SettingsMap["refreshInterval"]} min ago`);
+        const refreshNowPopupMenu = new PopupMenu.PopupMenuItem("Refresh now");
+        this.menu.addMenuItem(refreshNowPopupMenu, 0);
+
+        //TODO
+        // let lastRefreshSeconds = new Date().getTime();
+        // lastRefreshSeconds = (lastRefreshSeconds - _lastRefreshTime) / 1000; // result in seconds
+
+        // if(lastRefreshSeconds < 60)
+        //     lastRefreshSeconds = 1;
+
+        // const lastRefresh = new PopupMenu.PopupMenuItem(`Refreshed ${lastRefreshSeconds} min ago`, {
+        //     hover: false,
+        //     style_class: 'text-popupmenu'
+        // });
+        // this.menu.addMenuItem(lastRefresh, 1);
+        // this.menu.addAction(`Refreshed ${lastRefreshSeconds} min ago`, function (event) {
+        //     global.log("line 85: " + this.menu.isOpen);
+        // });
+
+        let nextRefresh = (_lastRefreshTime.getTime() / 1000) + SettingsMap["refreshInterval"];
+        nextRefresh = new Date(nextRefresh);
+
+        const nextRefreshPMI = new PopupMenu.PopupMenuItem(`Next refresh: ${nextRefresh.toLocaleTimeString()} (${SettingsMap["refreshInterval"]} s)`, {
+            hover: false,
+            style_class: 'text-popupmenu'
+        });
+        this.menu.addMenuItem(nextRefreshPMI, 0);
+
         const text1 = new PopupMenu.PopupMenuItem(`Bing wallpaper of the day for ${currentDateFormatted}`, {
             hover: false,
             style_class: 'text-popupmenu'
         });
-        this.menu.addMenuItem(text1, 0);
+        this.menu.addMenuItem(text1, 2);
 
         const text2 = new PopupMenu.PopupMenuItem(this.imageData.copyright, {
             hover: false,
             style_class: 'text-popupmenu'
         });
 
-        this.menu.addMenuItem(text2, 1);
+        this.menu.addMenuItem(text2, 9);
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        // Add a menu element
         // First argument is the text of the menu element, the second a callback function to execute when the element is clicked.
-        this.menu.addAction(_("Menu element 1"), function (event) {
-            global.log(_("Menu element 1 clicked"));
-        });
-
-        // Add another menu element
-        this.menu.addAction(_("Menu element 2"), function (event) {
-            global.log(_("Menu element 2 clicked"));
+        this.menu.addAction(_("Settings"), function (event) {
+            Util.spawnCommandLine("cinnamon-settings applets " + UUID);
         });
 
         // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
 
-
         // Create and add a switch to the context menu.
-        this.context_menu_switch_test = new PopupMenu.PopupSwitchMenuItem(_("Suspend update"), false);
-        this.menu.addMenuItem(this.context_menu_switch_test);
+        // this.context_menu_switch_test = new PopupMenu.PopupSwitchMenuItem(_("Suspend update"), false);
+        // this.menu.addMenuItem(this.context_menu_switch_test);
 
-        // Connect the toggle event of the switch to its callback.
-        this.context_menu_switch_test.connect('toggled', Lang.bind(this, this.on_toggle_context_menu_switch_test));
+        // // Connect the toggle event of the switch to its callback.
+        // this.context_menu_switch_test.connect('toggled', Lang.bind(this, this.on_toggle_context_menu_switch_test));
+        //#endregion
 
         if (this.saveWallpaper)
             this._saveWallpaperToImageFolder();
@@ -129,7 +154,7 @@ BingWallpaperApplet.prototype = {
     _removeTimeout: function () {
         if (SettingsMap["refreshInterval"]) {
             Mainloop.source_remove(SettingsMap["refreshInterval"]);
-            SettingsMap["refreshInterval"] = null;
+            SettingsMap["refreshInterval"] = 0;
         }
     },
 
@@ -138,6 +163,7 @@ BingWallpaperApplet.prototype = {
         this._removeTimeout();
         log(`Setting timeout (${seconds}s)`);
         SettingsMap["refreshInterval"] = Mainloop.timeout_add_seconds(seconds, Lang.bind(this, this._refresh));
+        _lastRefreshTime = new Date();
     },
 
     destroy: function () {
@@ -374,6 +400,7 @@ BingWallpaperApplet.prototype = {
                 this._setTimeout(newTimeout);
                 break;
             default:
+                global.log("no property changed");
                 break;
         }
 
