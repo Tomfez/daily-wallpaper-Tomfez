@@ -1,3 +1,5 @@
+const { Utils } = require("./utils");
+
 const Applet = imports.ui.applet;
 const Soup = imports.gi.Soup;
 const ByteArray = imports.byteArray;
@@ -19,6 +21,7 @@ let SettingsMap = {
 };
 
 let _lastRefreshTime;
+let _nextRefresh;
 let _httpSession;
 if (Soup.MAJOR_VERSION == 2) {
     _httpSession = new Soup.SessionAsync();
@@ -68,40 +71,21 @@ BingWallpaperApplet.prototype = {
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
 
-        //TODO
-        // let lastRefreshSeconds = new Date().getTime();
-        // lastRefreshSeconds = (lastRefreshSeconds - _lastRefreshTime) / 1000; // result in seconds
-
-        // if(lastRefreshSeconds < 60)
-        //     lastRefreshSeconds = 1;
-
-        // const lastRefresh = new PopupMenu.PopupMenuItem(`Refreshed ${lastRefreshSeconds} min ago`, {
-        //     hover: false,
-        //     style_class: 'text-popupmenu'
-        // });
-        // this.menu.addMenuItem(lastRefresh, 1);
-        // this.menu.addAction(`Refreshed ${lastRefreshSeconds} min ago`, function (event) {
-        //     global.log("line 85: " + this.menu.isOpen);
-        // });
-
-        let nextRefresh = (_lastRefreshTime.getTime() / 1000) + SettingsMap["refreshInterval"];
-        nextRefresh = new Date(nextRefresh);
-
-        const nextRefreshPMI = new PopupMenu.PopupMenuItem(`Next refresh: ${nextRefresh.toLocaleTimeString()} (${SettingsMap["refreshInterval"]} s)`, {
+        this.nextRefreshPMI = new PopupMenu.PopupMenuItem(this.refreshduetext, {
             hover: false,
             style_class: 'text-popupmenu'
         });
-        this.menu.addMenuItem(nextRefreshPMI, 0);
+        this.menu.addMenuItem(this.nextRefreshPMI, 0);
 
-        const refreshNowLabel = new PopupMenu.PopupMenuItem(_("Refresh now"));
-        refreshNowLabel.connect('activate', Lang.bind(this, function () { this._refresh() }));
-        this.menu.addMenuItem(refreshNowLabel, 1);
+        const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
+        refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
+        this.menu.addMenuItem(refreshNowPMI, 1);
 
-        const text1 = new PopupMenu.PopupMenuItem(`Bing wallpaper of the day for ${currentDateFormatted}`, {
+        const wallpaperTodayTextPMI = new PopupMenu.PopupMenuItem(`Bing wallpaper of the day for ${currentDateFormatted}`, {
             hover: false,
             style_class: 'text-popupmenu'
         });
-        this.menu.addMenuItem(text1, 2);
+        this.menu.addMenuItem(wallpaperTodayTextPMI, 2);
 
         const text2 = new PopupMenu.PopupMenuItem(this.imageData.copyright, {
             hover: false,
@@ -130,8 +114,7 @@ BingWallpaperApplet.prototype = {
         if (this.saveWallpaper)
             this._saveWallpaperToImageFolder();
 
-        global.log(SettingsMap);
-
+        log(SettingsMap);
     },
 
     on_applet_clicked: function () {
@@ -139,11 +122,27 @@ BingWallpaperApplet.prototype = {
         this.menu.toggle();
     },
 
+    _updateNextRefreshTextPopup: function () {
+        if (this.nextRefreshPMI) {
+            let refreshDue = new Utils();
+            _nextRefresh = refreshDue.friendly_time_diff(_lastRefreshTime, 86400);//.to_local();
+
+            this.refreshduetext =
+                _("Next refresh") + ": " + (_lastRefreshTime ? _lastRefreshTime.format("%Y-%m-%d %X") : '-') +
+                " (" + _nextRefresh + ")";
+
+            this.nextRefreshPMI.setLabel(this.refreshduetext);
+        } else {
+            this.refreshduetext = "Next refresh: now";
+        }
+    },
+
     _refresh: function () {
         log(`Beginning refresh`);
         this._getMetaData();
-        global.log(SettingsMap["refreshInterval"]);
+        // global.log(SettingsMap["refreshInterval"]);
         this._setTimeout(SettingsMap["refreshInterval"]);
+        this._updateNextRefreshTextPopup();
     },
 
     _removeTimeout: function () {
@@ -159,7 +158,8 @@ BingWallpaperApplet.prototype = {
         log(`Setting timeout (${seconds}s)`);
         this._timeout = Mainloop.timeout_add_seconds(seconds, Lang.bind(this, this._refresh));
         // SettingsMap["refreshInterval"] = seconds;
-        _lastRefreshTime = new Date();
+        // _lastRefreshTime = new Date();
+        _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(seconds);
     },
 
     destroy: function () {
@@ -169,6 +169,7 @@ BingWallpaperApplet.prototype = {
         this._removeTimeout();
     },
 
+    //#region Download image and apply as background
     _getMetaData: function () {
 
         /** Check for local metadata  */
@@ -336,6 +337,7 @@ BingWallpaperApplet.prototype = {
         Gio.Settings.sync();
         gSetting.apply();
     },
+    //#endregion
 
     // #region -- Settings --
 
