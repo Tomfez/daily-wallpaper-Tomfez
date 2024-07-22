@@ -34,7 +34,15 @@ const bingHost = 'https://www.bing.com';
 const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=0&n=1&mbl=1';
 
 function log(message) {
-    if (logging) global.log(`[bing-wallpaper@tom.dev]: ${message}`);
+    if (logging) {
+
+        if (typeof message === 'object' && !Array.isArray(message) && message !== null) {
+            const objectJson = JSON.stringify(message);
+            global.log(objectJson);
+        } else {
+            global.log(`[bing-wallpaper@tom.dev]: ${message}`);
+        }
+    }
 }
 
 function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
@@ -104,11 +112,11 @@ BingWallpaperApplet.prototype = {
         // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
 
         // Create and add a switch to the context menu.
-        // this.context_menu_switch_test = new PopupMenu.PopupSwitchMenuItem(_("Suspend update"), false);
-        // this.menu.addMenuItem(this.context_menu_switch_test);
+        this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), false);
+        this.menu.addMenuItem(this.enableDailyrefreshPSMI);
 
         // Connect the toggle event of the switch to its callback.
-        // this.context_menu_switch_test.connect('toggled', Lang.bind(this, this.on_toggle_context_menu_switch_test));
+        this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
         //#endregion
 
         if (this.saveWallpaper)
@@ -120,6 +128,16 @@ BingWallpaperApplet.prototype = {
     on_applet_clicked: function () {
         // Show/Hide the menu.
         this.menu.toggle();
+    },
+
+    on_toggle_enableDailyrefreshPSMI: function () {
+        if (!this.enableDailyrefreshPSMI.state) {
+            this._removeTimeout();
+            log("daily refresh disabled");
+        } else {
+            this._refresh();
+            log("daily refresh enabled");
+        }
     },
 
     _updateNextRefreshTextPopup: function () {
