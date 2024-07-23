@@ -5,6 +5,7 @@ const Soup = imports.gi.Soup;
 const ByteArray = imports.byteArray;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
+const { Clipboard, ClipboardType } = imports.gi.St;
 const Mainloop = imports.mainloop;
 const Lang = imports.lang;
 const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.js
@@ -95,14 +96,25 @@ BingWallpaperApplet.prototype = {
         });
         this.menu.addMenuItem(wallpaperTodayTextPMI, 2);
 
-        const text2 = new PopupMenu.PopupMenuItem(this.imageData.copyright, {
+        const copyrightTextPMI = new PopupMenu.PopupMenuItem(this.imageData.copyright, {
             hover: false,
             style_class: 'text-popupmenu'
         });
 
-        this.menu.addMenuItem(text2, 9);
+        this.menu.addMenuItem(copyrightTextPMI, 3);
 
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(), 4);
+
+        // Create and add a switch to the context menu.
+        this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), false);
+        this.menu.addMenuItem(this.enableDailyrefreshPSMI, 5);
+
+        // Connect the toggle event of the switch to its callback.
+        this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
+
+        const copyURLClipboardPMI = new PopupMenu.PopupMenuItem(_("Copy image URL to clipboard"));
+        copyURLClipboardPMI.connect('activate', Lang.bind(this, function () { this._copyURLToClipboard() }));
+        this.menu.addMenuItem(copyURLClipboardPMI, 6);
 
         // First argument is the text of the menu element, the second a callback function to execute when the element is clicked.
         this.menu.addAction(_("Settings"), function () {
@@ -111,12 +123,6 @@ BingWallpaperApplet.prototype = {
 
         // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
 
-        // Create and add a switch to the context menu.
-        this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), false);
-        this.menu.addMenuItem(this.enableDailyrefreshPSMI);
-
-        // Connect the toggle event of the switch to its callback.
-        this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
         //#endregion
 
         if (this.saveWallpaper)
@@ -153,6 +159,10 @@ BingWallpaperApplet.prototype = {
         } else {
             this.refreshduetext = "Next refresh: now";
         }
+    },
+
+    _copyURLToClipboard: function () {
+        Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url);
     },
 
     _refresh: function () {
