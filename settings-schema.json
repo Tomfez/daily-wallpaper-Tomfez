@@ -20,5 +20,11 @@
         "select-dir": true,
         "tooltip": "For example: /home/username/Pictures/wallpapers",
         "type": "filechooser"
+    },
+    "dailyRefreshState": {
+        "default": true,
+        "description": "Enable daily refresh",
+        "tooltip": "Enable daily refresh",
+        "type": "checkbox"
     }
 }

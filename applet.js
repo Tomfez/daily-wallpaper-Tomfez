@@ -18,7 +18,8 @@ const logging = true;
 let SettingsMap = {
     wallpaperDir: "Wallpaper path",
     saveWallpaper: false,
-    refreshInterval: 300
+    refreshInterval: 300,
+    dailyRefreshState: true
 };
 
 let _lastRefreshTime;
@@ -80,37 +81,38 @@ BingWallpaperApplet.prototype = {
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
 
-        this.nextRefreshPMI = new PopupMenu.PopupMenuItem(this.refreshduetext, {
+        const copyrightSplit = this.imageData.copyright.split(/(?=\(©)/g);
+        const wallpaperTextPMI = new PopupMenu.PopupMenuItem(copyrightSplit[0], {
             hover: false,
-            style_class: 'text-popupmenu'
+            style_class: 'copyright-text'
         });
-        this.menu.addMenuItem(this.nextRefreshPMI, 0);
+
+        this.menu.addMenuItem(wallpaperTextPMI, 0);
+
+        const copyrightSubText = copyrightSplit[1].slice(1, copyrightSplit[1].length - 1); //removes the '()'
+        const copyrightTextPMI = new PopupMenu.PopupMenuItem(copyrightSubText, {
+            sensitive: false,
+        });
+
+        this.menu.addMenuItem(copyrightTextPMI, 1);
+
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(), 2);
+
+        this.nextRefreshPMI = new PopupMenu.PopupMenuItem(this.refreshduetext, { sensitive: false });
+        this.menu.addMenuItem(this.nextRefreshPMI, 3);
 
         const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
         refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
-        this.menu.addMenuItem(refreshNowPMI, 1);
+        this.menu.addMenuItem(refreshNowPMI, 4);
 
-        const wallpaperTodayTextPMI = new PopupMenu.PopupMenuItem(`Bing wallpaper of the day for ${currentDateFormatted}`, {
-            hover: false,
-            style_class: 'text-popupmenu'
-        });
-        this.menu.addMenuItem(wallpaperTodayTextPMI, 2);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        const copyrightTextPMI = new PopupMenu.PopupMenuItem(this.imageData.copyright, {
-            hover: false,
-            style_class: 'text-popupmenu'
-        });
-
-        this.menu.addMenuItem(copyrightTextPMI, 3);
-
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(), 4);
-
+        SettingsMap["dailyRefreshState"] = this._settings.getValue("dailyRefreshState");
         // Create and add a switch to the context menu.
-        this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), false);
-        this.menu.addMenuItem(this.enableDailyrefreshPSMI, 5);
-
+        this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), SettingsMap["dailyRefreshState"]);
         // Connect the toggle event of the switch to its callback.
         this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
+        this.menu.addMenuItem(this.enableDailyrefreshPSMI, 5);
 
         const copyURLClipboardPMI = new PopupMenu.PopupMenuItem(_("Copy image URL to clipboard"));
         copyURLClipboardPMI.connect('activate', Lang.bind(this, function () { this._copyURLToClipboard() }));
@@ -144,6 +146,9 @@ BingWallpaperApplet.prototype = {
             this._refresh();
             log("daily refresh enabled");
         }
+        log(this.enableDailyrefreshPSMI.state);
+        this._settings.setValue("dailyRefreshState", this.enableDailyrefreshPSMI.state);
+        // SettingsMap["dailyRefreshState"] = this.enableDailyrefreshPSMI.state;
     },
 
     _updateNextRefreshTextPopup: function () {
@@ -419,6 +424,9 @@ BingWallpaperApplet.prototype = {
                 const newTimeout = this._settings.getValue(key);
                 global.log(newTimeout);
                 this._setTimeout(newTimeout);
+                break;
+            case "dailyRefreshState":
+                SettingsMap["dailyRefreshState"] = this._settings.getValue(key);
                 break;
             default:
                 global.log("no property changed");

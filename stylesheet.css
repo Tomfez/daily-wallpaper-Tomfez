@@ -1,3 +1,9 @@
 .text-popupmenu {
     color: rgba(128, 128, 128, 0.90);
 }
+
+.copyright-text{
+    font-size: 125%;
+    font-weight: bold;
+    color: #ffffff;
+}
