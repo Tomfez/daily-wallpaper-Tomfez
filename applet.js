@@ -446,22 +446,17 @@ BingWallpaperApplet.prototype = {
         if (!dir.query_exists(null))
             dir.make_directory(null);
 
-        const currentDate = new Date();
+        const currentDate = this.imageData.fullstartdate;
 
-        const dateFormated = currentDate.toISOString().split('T')[0].replaceAll('-', '')
-
-        let imagePath = GLib.build_filenamev([picturesDir, `BingWallpapers/BingWallpaper_${dateFormated}.jpg`]);
-
+        let imagePath = GLib.build_filenamev([picturesDir, `BingWallpapers/BingWallpaper_${currentDate}.jpg`]);
         imagePath = Gio.file_new_for_path(imagePath);
 
         if (!imagePath.query_exists(null)) {
             //Copy the file to Pictures folder
-
             const source = Gio.file_new_for_path(this.wallpaperPath);
 
             try {
                 source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
-
             } catch (error) {
                 global.log("error: " + error);
             }
