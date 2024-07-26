@@ -13,6 +13,7 @@ const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
 const Util = imports.misc.util;
 
 const currentDateFormatted = GLib.DateTime.new_now_utc().format("%Y-%m-%d");
+const picturesDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES);
 const UUID = "bing-wallpaper@Tomfez";
 const logging = true;
 let SettingsMap = {
@@ -37,7 +38,6 @@ const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=0&n=1&mbl=1';
 
 function log(message) {
     if (logging) {
-
         if (typeof message === 'object' && !Array.isArray(message) && message !== null) {
             const objectJson = JSON.stringify(message);
             global.log(objectJson);
@@ -63,9 +63,8 @@ BingWallpaperApplet.prototype = {
         this._bindSettings(metadata, orientation, panel_height, instance_id);
 
         // Path to store data in
-        if (!this.wallpaperDir) {
+        if (!this.wallpaperDir)
             this.wallpaperDir = `${GLib.get_user_config_dir()}/bingwallpaper`;
-        }
 
         this.wallpaperPath = `${this.wallpaperDir}/BingWallpaper.jpg`;
         this.metaDataPath = `${this.wallpaperDir}/meta.json`;
@@ -75,8 +74,6 @@ BingWallpaperApplet.prototype = {
         this._refresh();
 
         // #region -- Popup menu --
-
-        // Create a popup menu
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
@@ -87,41 +84,33 @@ BingWallpaperApplet.prototype = {
             style_class: 'copyright-text'
         });
 
-        this.menu.addMenuItem(wallpaperTextPMI, 0);
-
         const copyrightSubText = copyrightSplit[1].slice(1, copyrightSplit[1].length - 1); //removes the '()'
         const copyrightTextPMI = new PopupMenu.PopupMenuItem(copyrightSubText, {
             sensitive: false,
         });
 
-        this.menu.addMenuItem(copyrightTextPMI, 1);
-
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(), 2);
-
         this.nextRefreshPMI = new PopupMenu.PopupMenuItem(this.refreshduetext, { sensitive: false });
-        this.menu.addMenuItem(this.nextRefreshPMI, 3);
 
         const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
         refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
-        this.menu.addMenuItem(refreshNowPMI, 4);
-
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         SettingsMap["dailyRefreshState"] = this._settings.getValue("dailyRefreshState");
-        // Create and add a switch to the context menu.
         this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), SettingsMap["dailyRefreshState"]);
         // Connect the toggle event of the switch to its callback.
         this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
-        this.menu.addMenuItem(this.enableDailyrefreshPSMI, 5);
 
-        const copyURLClipboardPMI = new PopupMenu.PopupMenuItem(_("Copy image URL to clipboard"));
-        copyURLClipboardPMI.connect('activate', Lang.bind(this, function () { this._copyURLToClipboard() }));
-        this.menu.addMenuItem(copyURLClipboardPMI, 6);
-
-        // First argument is the text of the menu element, the second a callback function to execute when the element is clicked.
-        this.menu.addAction(_("Settings"), function () {
-            Util.spawnCommandLine("cinnamon-settings applets " + UUID);
-        });
+        // Add items to the menu
+        this.menu.addMenuItem(wallpaperTextPMI);
+        this.menu.addMenuItem(copyrightTextPMI);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addMenuItem(this.nextRefreshPMI);
+        this.menu.addMenuItem(refreshNowPMI);
+        this.menu.addMenuItem(this.enableDailyrefreshPSMI);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
+        this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${picturesDir}/BingWallpapers`));
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
 
         // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
 
@@ -146,9 +135,7 @@ BingWallpaperApplet.prototype = {
             this._refresh();
             log("daily refresh enabled");
         }
-        log(this.enableDailyrefreshPSMI.state);
         this._settings.setValue("dailyRefreshState", this.enableDailyrefreshPSMI.state);
-        // SettingsMap["dailyRefreshState"] = this.enableDailyrefreshPSMI.state;
     },
 
     _updateNextRefreshTextPopup: function () {
@@ -164,10 +151,6 @@ BingWallpaperApplet.prototype = {
         } else {
             this.refreshduetext = "Next refresh: now";
         }
-    },
-
-    _copyURLToClipboard: function () {
-        Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url);
     },
 
     _refresh: function () {
@@ -440,7 +423,6 @@ BingWallpaperApplet.prototype = {
     },
 
     _saveWallpaperToImageFolder: function () {
-        const picturesDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES);
         let dir = Gio.file_new_for_path(`${picturesDir}/BingWallpapers`);
 
         if (!dir.query_exists(null))
