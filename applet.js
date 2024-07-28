@@ -95,9 +95,9 @@ BingWallpaperApplet.prototype = {
         refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
 
         SettingsMap["dailyRefreshState"] = this._settings.getValue("dailyRefreshState");
-        this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), SettingsMap["dailyRefreshState"]);
+        // this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), SettingsMap["dailyRefreshState"]);
         // Connect the toggle event of the switch to its callback.
-        this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
+        // this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
 
         // Add items to the menu
         this.menu.addMenuItem(wallpaperTextPMI);
@@ -105,7 +105,7 @@ BingWallpaperApplet.prototype = {
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this.menu.addMenuItem(this.nextRefreshPMI);
         this.menu.addMenuItem(refreshNowPMI);
-        this.menu.addMenuItem(this.enableDailyrefreshPSMI);
+        // this.menu.addMenuItem(this.enableDailyrefreshPSMI);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
         this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${picturesDir}/BingWallpapers`));
@@ -387,32 +387,36 @@ BingWallpaperApplet.prototype = {
     },
 
     _property_changed: function (key) {
+        const val = this._settings.getValue(key);
+
         switch (key) {
             case "wallpaperDir":
-                if (this.wallpaperDir.startsWith("file://")) {
+                if (this.wallpaperDir.startsWith("file://"))
                     this.wallpaperDir = this.wallpaperDir.slice("file://".length);
-                }
 
-                global.log("new wallpaperDir: " + this.wallpaperDir);
                 break;
-
             case "saveWallpaper":
-                this.saveWallpaper = this._settings.getValue(key);
-                global.log("this.saveWallpaperr: " + this.saveWallpaper);
+                this.saveWallpaper = val;
 
                 if (this.saveWallpaper)
                     this._saveWallpaperToImageFolder();
                 break;
             case "refreshInterval":
-                const newTimeout = this._settings.getValue(key);
-                global.log(newTimeout);
-                this._setTimeout(newTimeout);
+                this._setTimeout(val);
                 break;
             case "dailyRefreshState":
-                SettingsMap["dailyRefreshState"] = this._settings.getValue(key);
+                if (!val) {
+                    this._removeTimeout();
+                    log("daily refresh disabled");
+                } else {
+                    this._refresh();
+                    log("daily refresh enabled");
+                }
+                // this._settings.setValue("dailyRefreshState", this.enableDailyrefreshPSMI.state);
+                // SettingsMap["dailyRefreshState"] = val;
                 break;
             default:
-                global.log("no property changed");
+                log("no property changed");
                 break;
         }
 
