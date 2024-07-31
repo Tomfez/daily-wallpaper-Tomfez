@@ -15,8 +15,8 @@
         "type": "checkbox"
     },
     "wallpaperDir": {
-        "default": "",
-        "description": "Specify path of the wallpaper directory",
+        "default": "~/Images/",
+        "description": "Image directory",
         "select-dir": true,
         "tooltip": "For example: /home/username/Pictures/wallpapers",
         "type": "filechooser"
