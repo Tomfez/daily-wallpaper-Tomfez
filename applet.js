@@ -15,7 +15,6 @@ const Util = imports.misc.util;
 const currentDateFormatted = GLib.DateTime.new_now_utc().format("%Y-%m-%d");
 const picturesDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES);
 const UUID = "bing-wallpaper@Tomfez";
-const logging = true;
 let SettingsMap = {
     wallpaperDir: "Wallpaper path",
     saveWallpaper: false,
@@ -36,17 +35,6 @@ if (Soup.MAJOR_VERSION == 2) {
 const bingHost = 'https://www.bing.com';
 const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=0&n=1&mbl=1';
 
-function log(message) {
-    if (logging) {
-        if (typeof message === 'object' && !Array.isArray(message) && message !== null) {
-            const objectJson = JSON.stringify(message);
-            global.log(objectJson);
-        } else {
-            global.log(`[bing-wallpaper@tom.dev]: ${message}`);
-        }
-    }
-}
-
 function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
     this._init(metadata, orientation, panel_height, instance_id);
 }
@@ -62,6 +50,7 @@ BingWallpaperApplet.prototype = {
 
         this._bindSettings(metadata, orientation, panel_height, instance_id);
 
+        this.wallpaperDir = Utils.formatFolderName(this.wallpaperDir);
         this.wallpaperPath = `${this.wallpaperDir}/BingWallpaper.jpg`;
         this.metaDataPath = `${this.wallpaperDir}/meta.json`;
 
@@ -106,7 +95,7 @@ BingWallpaperApplet.prototype = {
             // this.menu.addMenuItem(this.enableDailyrefreshPSMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
-            this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${picturesDir}/BingWallpapers`));
+            this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
 
@@ -117,7 +106,7 @@ BingWallpaperApplet.prototype = {
             if (this.saveWallpaper)
                 this._saveWallpaperToImageFolder();
 
-            log(SettingsMap);
+            Utils.log(SettingsMap);
         }, 2000);
     },
 
@@ -129,10 +118,10 @@ BingWallpaperApplet.prototype = {
     on_toggle_enableDailyrefreshPSMI: function () {
         if (!this.enableDailyrefreshPSMI.state) {
             this._removeTimeout();
-            log("daily refresh disabled");
+            Utils.log("daily refresh disabled");
         } else {
             this._refresh();
-            log("daily refresh enabled");
+            Utils.log("daily refresh enabled");
         }
         this._settings.setValue("dailyRefreshState", this.enableDailyrefreshPSMI.state);
     },
@@ -155,7 +144,7 @@ BingWallpaperApplet.prototype = {
     },
 
     _refresh: function () {
-        log(`Beginning refresh`);
+        Utils.log(`Beginning refresh`);
         this._getMetaData();
         if (this.dailyRefreshState) {
             this._setTimeout(this.refreshInterval);
@@ -175,7 +164,7 @@ BingWallpaperApplet.prototype = {
     _setTimeout: function (seconds) {
         /** Cancel current timeout in event of an error and try again shortly */
         this._removeTimeout();
-        log(`Setting timeout (${seconds}s)`);
+        Utils.log(`Setting timeout (${seconds}s)`);
         this._timeout = Mainloop.timeout_add_seconds(seconds, Lang.bind(this, this._refresh));
         // SettingsMap["refreshInterval"] = seconds;
         // _lastRefreshTime = new Date();
@@ -199,7 +188,7 @@ BingWallpaperApplet.prototype = {
 
             this.imageData = json.images[0];
             this.set_applet_tooltip(this.imageData.copyright);
-            log(`Got image url from local file : ${this.imageData.url}`);
+            Utils.log(`Got image url from local file : ${this.imageData.url}`);
 
             /** See if this data is current */
             const start_date = GLib.DateTime.new(
@@ -215,7 +204,7 @@ BingWallpaperApplet.prototype = {
             const now = GLib.DateTime.new_now_utc();
 
             if (now.to_unix() < end_date.to_unix()) {
-                log('metadata up to date');
+                Utils.log('metadata up to date');
 
                 // Look for image file, check this is up to date
                 let image_file = Gio.file_new_for_path(this.wallpaperPath);
@@ -228,22 +217,20 @@ BingWallpaperApplet.prototype = {
 
                     if ((image_file_mod_secs > end_date.to_unix()) || !image_file_size) { // Is the image old, or empty?
                         this._downloadImage();
-
                     } else {
-                        log("image appears up to date");
+                        Utils.log("image appears up to date");
                     }
-
                 } else {
-                    log("No image file found");
+                    Utils.log("No image file found");
                     this._downloadImage();
                 }
             }
             else {
-                log('metadata is old, requesting new...');
+                Utils.log('metadata is old, requesting new...');
                 this._downloadMetaData();
             }
         } catch (err) {
-            log(`Unable to get local metadata ${err}`);
+            Utils.log(`Unable to get local metadata ${err}`);
             /** File does not exist or there was an error processing it */
             this._downloadMetaData();
         }
@@ -263,7 +250,7 @@ BingWallpaperApplet.prototype = {
             const json = JSON.parse(data);
             this.imageData = json.images[0];
             this.set_applet_tooltip(this.imageData.copyright);
-            log(`Got image url from download: ${this.imageData.url}`);
+            Utils.log(`Got image url from download: ${this.imageData.url}`);
 
             this._downloadImage();
         };
@@ -275,7 +262,7 @@ BingWallpaperApplet.prototype = {
                 if (message.status_code === 200) {
                     process_result(message.response_body.data);
                 } else {
-                    log(`Failed to acquire image metadata (${message.status_code})`);
+                    Utils.log(`Failed to acquire image metadata (${message.status_code})`);
                     this._setTimeout(60)  // Try again
                 }
             });
@@ -285,7 +272,7 @@ BingWallpaperApplet.prototype = {
                     const bytes = _httpSession.send_and_read_finish(message);
                     process_result(ByteArray.toString(bytes.get_data()));
                 } else {
-                    log(`Failed to acquire image metadata (${request.get_status()})`);
+                    Utils.log(`Failed to acquire image metadata (${request.get_status()})`);
                     this._setTimeout(60)  // Try again
                 }
             });
@@ -294,7 +281,7 @@ BingWallpaperApplet.prototype = {
 
     _downloadImage: function () {
 
-        log('downloading new image');
+        Utils.log('downloading new image');
         const url = `${bingHost}${this.imageData.url}`;
         const regex = /_\d+x\d+./gm;
         const urlUHD = url.replace(regex, `_UHD.`);
@@ -325,7 +312,7 @@ BingWallpaperApplet.prototype = {
                 if (message.status_code === 200 && contentLength === bytesTotal) {
                     this._setBackground();
                 } else {
-                    log("Couldn't fetch image from " + urlUHD);
+                    Utils.log("Couldn't fetch image from " + urlUHD);
                     gFile.delete(null);
                     this._setTimeout(60)  // Try again
                 }
@@ -339,10 +326,10 @@ BingWallpaperApplet.prototype = {
                     }
                     // request completed
                     fStream.close(null);
-                    log('Download successful');
+                    Utils.log('Download successful');
                     this._setBackground();
                 } else {
-                    log("Couldn't fetch image from " + urlUHD);
+                    Utils.log("Couldn't fetch image from " + urlUHD);
                     this._setTimeout(60)  // Try again
                 }
             });
@@ -395,8 +382,8 @@ BingWallpaperApplet.prototype = {
 
         switch (key) {
             case "wallpaperDir":
-                if (this.wallpaperDir.startsWith("file://"))
-                    this.wallpaperDir = this.wallpaperDir.slice("file://".length);
+                Utils.log(val);
+                Utils.formatFolderName(val);
 
                 break;
             case "saveWallpaper":
@@ -411,16 +398,16 @@ BingWallpaperApplet.prototype = {
             case "dailyRefreshState":
                 if (!val) {
                     this._removeTimeout();
-                    log("daily refresh disabled");
+                    Utils.log("daily refresh disabled");
                 } else {
                     this._refresh();
-                    log("daily refresh enabled");
+                    Utils.log("daily refresh enabled");
                 }
                 // this._settings.setValue("dailyRefreshState", this.enableDailyrefreshPSMI.state);
                 // SettingsMap["dailyRefreshState"] = val;
                 break;
             default:
-                log("no property changed");
+                Utils.log("no property changed");
                 break;
         }
 
@@ -448,7 +435,7 @@ BingWallpaperApplet.prototype = {
             try {
                 source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
             } catch (error) {
-                global.log("error: " + error);
+                Utils.log("error: " + error);
             }
         }
     }

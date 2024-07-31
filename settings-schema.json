@@ -10,12 +10,12 @@
     },
     "saveWallpaper": {
         "default": false,
-        "description": "Save wallpapers to images folder",
-        "tooltip": "Save wallpapers to images folder",
+        "description": "Save wallpaper to image directory",
+        "tooltip": "Save wallpaper to image directory",
         "type": "checkbox"
     },
     "wallpaperDir": {
-        "default": "~/Images/",
+        "default": "~/.config/bingwallpaper",
         "description": "Image directory",
         "select-dir": true,
         "tooltip": "For example: /home/username/Pictures/wallpapers",
