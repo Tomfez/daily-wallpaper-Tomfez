@@ -24,33 +24,15 @@ class Utils {
      * @returns 
      */
     static formatFolderName(wallpaperDir) {
-        if (wallpaperDir.startsWith("file://"))
+        if (wallpaperDir.startsWith("file://")) {
             wallpaperDir = wallpaperDir.slice("file://".length);
 
-        this.log("new wall dir: " + wallpaperDir);
-        return wallpaperDir;
-    }
+            // Removes '%' and return a valid path with accents
+            wallpaperDir = decodeURIComponent(wallpaperDir);
+            this.log("new wall dir: " + wallpaperDir);
+        }
 
-    getWallpaperDir(settings) {
-        let homeDir =  GLib.get_home_dir(); 
-        let BingWallpaperDir = settings.get_string('download-folder').replace('~', homeDir); 
-        let userPicturesDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES);
-        let userDesktopDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DESKTOP); // seems to be a safer default
-        if (BingWallpaperDir == '') {
-            BingWallpaperDir = (userPicturesDir?userPicturesDir:userDesktopDir) + '/BingWallpaper/';
-            BingLog('Using default download folder: ' + BingWallpaperDir);
-            setWallpaperDir(settings, BingWallpaperDir);
-        }
-        else if (!BingWallpaperDir.endsWith('/')) {
-            BingWallpaperDir += '/';
-        }
-    
-        let dir = Gio.file_new_for_path(BingWallpaperDir);
-        if (!dir.query_exists(null)) {
-            dir.make_directory_with_parents(null);
-        }
-        //FIXME: test if dir is good and writable
-        return BingWallpaperDir;
+        return wallpaperDir;
     }
 
     /**

@@ -50,15 +50,17 @@ BingWallpaperApplet.prototype = {
 
         this._bindSettings(metadata, orientation, panel_height, instance_id);
 
-        this.wallpaperDir = Utils.formatFolderName(this.wallpaperDir);
-        this.wallpaperPath = `${this.wallpaperDir}/BingWallpaper.jpg`;
-        this.metaDataPath = `${this.wallpaperDir}/meta.json`;
+        // We use this directory to store the current wallpaper and metadata from it
+        const configPath = `${GLib.get_user_config_dir()}/bingwallpaper`;
+        this.wallpaperPath = `${configPath}/BingWallpaper.jpg`;
+        this.metaDataPath = `${configPath}/meta.json`;
 
         // Begin refresh loop
         this._refresh();
 
         // Set a 2000ms timeout to give time to get the metadata the first time the app is launched
         setTimeout(() => {
+            this.setWallpaperDirectory(this.wallpaperDir);
 
             // #region -- Popup menu --
             this.menuManager = new PopupMenu.PopupMenuManager(this);
@@ -102,11 +104,10 @@ BingWallpaperApplet.prototype = {
             // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
 
             //#endregion
+            Utils.log(SettingsMap);
 
             if (this.saveWallpaper)
                 this._saveWallpaperToImageFolder();
-
-            Utils.log(SettingsMap);
         }, 2000);
     },
 
@@ -143,6 +144,12 @@ BingWallpaperApplet.prototype = {
         }
     },
 
+    setWallpaperDirectory: function (path) {
+        Utils.log(path);
+        this.wallpaperDir = Utils.formatFolderName(path);
+        this._saveWallpaperToImageFolder();
+    },
+
     _refresh: function () {
         Utils.log(`Beginning refresh`);
         this._getMetaData();
@@ -166,8 +173,7 @@ BingWallpaperApplet.prototype = {
         this._removeTimeout();
         Utils.log(`Setting timeout (${seconds}s)`);
         this._timeout = Mainloop.timeout_add_seconds(seconds, Lang.bind(this, this._refresh));
-        // SettingsMap["refreshInterval"] = seconds;
-        // _lastRefreshTime = new Date();
+
         _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(seconds);
     },
 
@@ -382,18 +388,14 @@ BingWallpaperApplet.prototype = {
 
         switch (key) {
             case "wallpaperDir":
-                Utils.log(val);
-                Utils.formatFolderName(val);
-
+                this.setWallpaperDirectory(val);
                 break;
             case "saveWallpaper":
-                // this.saveWallpaper = val;
-
                 if (this.saveWallpaper)
                     this._saveWallpaperToImageFolder();
                 break;
             case "refreshInterval":
-                this._setTimeout(val);
+                this._refresh();
                 break;
             case "dailyRefreshState":
                 if (!val) {
@@ -403,8 +405,6 @@ BingWallpaperApplet.prototype = {
                     this._refresh();
                     Utils.log("daily refresh enabled");
                 }
-                // this._settings.setValue("dailyRefreshState", this.enableDailyrefreshPSMI.state);
-                // SettingsMap["dailyRefreshState"] = val;
                 break;
             default:
                 Utils.log("no property changed");
@@ -418,14 +418,15 @@ BingWallpaperApplet.prototype = {
     },
 
     _saveWallpaperToImageFolder: function () {
-        let dir = Gio.file_new_for_path(`${picturesDir}/BingWallpapers`);
+        // let dir = Gio.file_new_for_path(`${picturesDir}/BingWallpapers`);
+        let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
 
         if (!dir.query_exists(null))
             dir.make_directory(null);
 
         const currentDate = this.imageData.fullstartdate;
 
-        let imagePath = GLib.build_filenamev([picturesDir, `BingWallpapers/BingWallpaper_${currentDate}.jpg`]);
+        let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
         imagePath = Gio.file_new_for_path(imagePath);
 
         if (!imagePath.query_exists(null)) {
