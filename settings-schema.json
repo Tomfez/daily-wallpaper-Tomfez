@@ -1,12 +1,12 @@
 {
     "refreshInterval": {
-        "default": 300,
+        "default": 60,
         "description": "Update interval to check new wallpaper",
-        "max": 86400,
-        "min": 20,
+        "max": 1440,
+        "min": 1,
         "step": 5,
         "type": "spinbutton",
-        "units": "Seconds"
+        "units": "Minutes"
     },
     "saveWallpaper": {
         "default": false,

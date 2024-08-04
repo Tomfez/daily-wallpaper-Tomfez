@@ -54,7 +54,7 @@ class Utils {
      * @param {boolean} short - True to display short unit of time, false to display long unit of time
      * @returns {string} - Returns a next refresh datetime as a string
      */
-    static friendly_time_diff(time, short = true) {
+    static friendly_time_diff(time, short) {
         // short we want to keep ~4-5 characters
         let now = GLib.DateTime.new_now_local().to_unix();
         let seconds = time.to_unix() - now;

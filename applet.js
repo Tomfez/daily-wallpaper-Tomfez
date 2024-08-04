@@ -119,19 +119,18 @@ BingWallpaperApplet.prototype = {
     },
 
     _updateNextRefreshTextPopup: function () {
-        if (this.nextRefreshPMI) {
-            _nextRefresh = Utils.friendly_time_diff(_lastRefreshTime, 86400);//.to_local();
+        if (!this.dailyRefreshState) {
+            this.refreshduetext = "Refresh deactivated";
+        } else {
+            _nextRefresh = Utils.friendly_time_diff(_lastRefreshTime, true);
 
             this.refreshduetext =
                 _("Next refresh") + ": " + (_lastRefreshTime ? _lastRefreshTime.format("%Y-%m-%d %X") : '-') +
                 " (" + _nextRefresh + ")";
+        }
 
+        if (this.nextRefreshPMI) {
             this.nextRefreshPMI.setLabel(this.refreshduetext);
-        } else {
-            this.refreshduetext = "Next refresh: now";
-
-            if (!this.dailyRefreshState)
-                this.refreshduetext = "Refresh deactivated";
         }
     },
 
@@ -159,13 +158,13 @@ BingWallpaperApplet.prototype = {
         }
     },
 
-    _setTimeout: function (seconds) {
+    _setTimeout: function (minutes) {
         /** Cancel current timeout in event of an error and try again shortly */
         this._removeTimeout();
-        Utils.log(`Setting timeout (${seconds}s)`);
-        this._timeout = Mainloop.timeout_add_seconds(seconds, Lang.bind(this, this._refresh));
+        Utils.log(`Setting timeout (${minutes}min)`);
+        this._timeout = Mainloop.timeout_add_seconds(minutes * 60, Lang.bind(this, this._refresh));
 
-        _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(seconds);
+        _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(minutes * 60);
     },
 
     destroy: function () {
