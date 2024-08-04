@@ -12,8 +12,6 @@ const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.j
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
 const Util = imports.misc.util;
 
-const currentDateFormatted = GLib.DateTime.new_now_utc().format("%Y-%m-%d");
-const picturesDir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES);
 const UUID = "bing-wallpaper@Tomfez";
 let SettingsMap = {
     wallpaperDir: "Wallpaper path",
@@ -50,7 +48,7 @@ BingWallpaperApplet.prototype = {
 
         this._bindSettings(metadata, orientation, panel_height, instance_id);
 
-        // We use this directory to store the current wallpaper and metadata from it
+        // We use this directory to store the current wallpaper and metadata
         const configPath = `${GLib.get_user_config_dir()}/bingwallpaper`;
         this.wallpaperPath = `${configPath}/BingWallpaper.jpg`;
         this.metaDataPath = `${configPath}/meta.json`;
@@ -58,7 +56,7 @@ BingWallpaperApplet.prototype = {
         // Begin refresh loop
         this._refresh();
 
-        // Set a 2000ms timeout to give time to get the metadata the first time the app is launched
+        // Wait 2s to get the metadata the first time the app is launched
         setTimeout(() => {
             this.setWallpaperDirectory(this.wallpaperDir);
 
@@ -83,18 +81,12 @@ BingWallpaperApplet.prototype = {
             const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
             refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
 
-            // SettingsMap["dailyRefreshState"] = this._settings.getValue("dailyRefreshState");
-            // this.enableDailyrefreshPSMI = new PopupMenu.PopupSwitchMenuItem(_("Enable daily refresh"), SettingsMap["dailyRefreshState"]);
-            // Connect the toggle event of the switch to its callback.
-            // this.enableDailyrefreshPSMI.connect('toggled', Lang.bind(this, this.on_toggle_enableDailyrefreshPSMI));
-
             // Add items to the menu
             this.menu.addMenuItem(wallpaperTextPMI);
             this.menu.addMenuItem(copyrightTextPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(this.nextRefreshPMI);
             this.menu.addMenuItem(refreshNowPMI);
-            // this.menu.addMenuItem(this.enableDailyrefreshPSMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
             this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
@@ -104,11 +96,10 @@ BingWallpaperApplet.prototype = {
             // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
 
             //#endregion
-            Utils.log(SettingsMap);
-
-            if (this.saveWallpaper)
-                this._saveWallpaperToImageFolder();
         }, 2000);
+
+        if (this.saveWallpaper)
+            this._saveWallpaperToImageFolder();
     },
 
     on_applet_clicked: function () {
@@ -417,29 +408,28 @@ BingWallpaperApplet.prototype = {
         SettingsMap[key] = this[key];
     },
 
-    _saveWallpaperToImageFolder: function () {
-        // let dir = Gio.file_new_for_path(`${picturesDir}/BingWallpapers`);
+    _saveWallpaperToImageFolder: async function () {
         let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
 
         if (!dir.query_exists(null))
             dir.make_directory(null);
 
+        await Utils.delay(5000); // we wait 5s to be sure that the download of the current wallpaper is done
         const currentDate = this.imageData.fullstartdate;
 
         let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
         imagePath = Gio.file_new_for_path(imagePath);
 
         if (!imagePath.query_exists(null)) {
-            //Copy the file to Pictures folder
             const source = Gio.file_new_for_path(this.wallpaperPath);
 
             try {
                 source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
             } catch (error) {
-                Utils.log("error: " + error);
+                Utils.log("error _saveWallpaperToImageFolder: " + error);
             }
         }
-    }
+    },
     //#endregion
 };
 

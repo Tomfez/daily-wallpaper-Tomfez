@@ -19,9 +19,22 @@ class Utils {
     }
 
     /**
+     * delay
+     * @param {number} ms - Number of milliseconds
+     * @returns {Promise<void>} - Returns a Promise
+     */
+    static async delay(ms) {
+        return await new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, ms);
+        });
+    }
+
+    /**
      * formatFolderName
      * @param {string} wallpaperDir - Location of wallpaper
-     * @returns 
+     * @returns {string} Returns the wallpaper directory formated
      */
     static formatFolderName(wallpaperDir) {
         if (wallpaperDir.startsWith("file://")) {
@@ -39,7 +52,7 @@ class Utils {
      * friendly_time_diff
      * @param {GLib.DateTime} time - The DateTime object to compare
      * @param {boolean} short - True to display short unit of time, false to display long unit of time
-     * @returns 
+     * @returns {string} - Returns a next refresh datetime as a string
      */
     static friendly_time_diff(time, short = true) {
         // short we want to keep ~4-5 characters
