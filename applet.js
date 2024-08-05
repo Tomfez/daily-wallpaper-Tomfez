@@ -23,6 +23,7 @@ let SettingsMap = {
 let _lastRefreshTime;
 let _nextRefresh;
 let _httpSession;
+let _idxWallpaper = 0;
 if (Soup.MAJOR_VERSION == 2) {
     _httpSession = new Soup.SessionAsync();
     Soup.Session.prototype.add_feature.call(_httpSession, new Soup.ProxyResolverDefault());
@@ -31,7 +32,7 @@ if (Soup.MAJOR_VERSION == 2) {
 }
 
 const bingHost = 'https://www.bing.com';
-const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=0&n=1&mbl=1';
+// const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
 
 function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
     this._init(metadata, orientation, panel_height, instance_id);
@@ -85,6 +86,8 @@ BingWallpaperApplet.prototype = {
             this.menu.addMenuItem(wallpaperTextPMI);
             this.menu.addMenuItem(copyrightTextPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            //TODO add prev, next buttons
+            
             this.menu.addMenuItem(this.nextRefreshPMI);
             this.menu.addMenuItem(refreshNowPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -140,6 +143,24 @@ BingWallpaperApplet.prototype = {
         this._saveWallpaperToImageFolder();
     },
 
+    getWallpaperByIndex: function (sens) {
+        switch (sens) {
+            case "next":
+                this._idxWallpaper += 1;
+                break;
+            case "prev":
+                this._idxWallpaper -= 1;
+            default:
+                this._idxWallpaper = 0;
+                break;
+        }
+
+        // We get the new metadata
+        this._downloadMetaData();
+        this._refresh();
+    },
+
+    //#region Timeout
     _refresh: function () {
         Utils.log(`Beginning refresh`);
         this._getMetaData();
@@ -173,6 +194,7 @@ BingWallpaperApplet.prototype = {
     on_applet_removed_from_panel() {
         this._removeTimeout();
     },
+    //#endregion
 
     //#region Download image and apply as background
     _getMetaData: function () {
@@ -252,6 +274,8 @@ BingWallpaperApplet.prototype = {
         };
 
         // Retrieve json metadata, either from local file or remote
+        const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
+
         let request = Soup.Message.new('GET', `${bingHost}${bingRequestPath}`);
         if (Soup.MAJOR_VERSION === 2) {
             _httpSession.queue_message(request, (_httpSession, message) => {
@@ -324,6 +348,9 @@ BingWallpaperApplet.prototype = {
                     fStream.close(null);
                     Utils.log('Download successful');
                     this._setBackground();
+
+                    if (this.saveWallpaper)
+                        this._saveWallpaperToImageFolder();
                 } else {
                     Utils.log("Couldn't fetch image from " + urlUHD);
                     this._setTimeout(60)  // Try again
