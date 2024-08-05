@@ -23,6 +23,7 @@ let SettingsMap = {
 let _lastRefreshTime;
 let _nextRefresh;
 let _httpSession;
+let _idxWallpaper = 0;
 if (Soup.MAJOR_VERSION == 2) {
     _httpSession = new Soup.SessionAsync();
     Soup.Session.prototype.add_feature.call(_httpSession, new Soup.ProxyResolverDefault());
@@ -31,7 +32,6 @@ if (Soup.MAJOR_VERSION == 2) {
 }
 
 const bingHost = 'https://www.bing.com';
-const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=0&n=1&mbl=1';
 
 function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
     this._init(metadata, orientation, panel_height, instance_id);
@@ -84,6 +84,9 @@ BingWallpaperApplet.prototype = {
             // Add items to the menu
             this.menu.addMenuItem(wallpaperTextPMI);
             this.menu.addMenuItem(copyrightTextPMI);
+            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            this.menu.addAction(_("Previous"), () => this.getWallpaperByIndex("prev"));
+            this.menu.addAction(_("Next"), () => this.getWallpaperByIndex("next"));
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(this.nextRefreshPMI);
             this.menu.addMenuItem(refreshNowPMI);
@@ -140,6 +143,28 @@ BingWallpaperApplet.prototype = {
         this._saveWallpaperToImageFolder();
     },
 
+    getWallpaperByIndex: function (sens) {
+        switch (sens) {
+            case "next":
+                if (_idxWallpaper > 0)
+                    _idxWallpaper -= 1;
+                break;
+            case "prev":
+
+                if (_idxWallpaper < 8)
+                    _idxWallpaper += 1;
+                break;
+            default:
+                _idxWallpaper = 0;
+                break;
+        }
+
+        // We get the new metadata
+        this._downloadMetaData();
+        this._refresh();
+    },
+
+    //#region Timeout
     _refresh: function () {
         Utils.log(`Beginning refresh`);
         this._getMetaData();
@@ -252,6 +277,8 @@ BingWallpaperApplet.prototype = {
         };
 
         // Retrieve json metadata, either from local file or remote
+        const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
+
         let request = Soup.Message.new('GET', `${bingHost}${bingRequestPath}`);
         if (Soup.MAJOR_VERSION === 2) {
             _httpSession.queue_message(request, (_httpSession, message) => {
