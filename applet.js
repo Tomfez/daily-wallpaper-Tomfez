@@ -13,17 +13,11 @@ const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
 const Util = imports.misc.util;
 
 const UUID = "bing-wallpaper@Tomfez";
-let SettingsMap = {
-    wallpaperDir: "Wallpaper path",
-    saveWallpaper: false,
-    refreshInterval: 300,
-    dailyRefreshState: true
-};
-
 let _lastRefreshTime;
 let _nextRefresh;
 let _httpSession;
 let _idxWallpaper = 0;
+
 if (Soup.MAJOR_VERSION == 2) {
     _httpSession = new Soup.SessionAsync();
     Soup.Session.prototype.add_feature.call(_httpSession, new Soup.ProxyResolverDefault());
@@ -32,7 +26,6 @@ if (Soup.MAJOR_VERSION == 2) {
 }
 
 const bingHost = 'https://www.bing.com';
-// const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
 
 function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
     this._init(metadata, orientation, panel_height, instance_id);
@@ -81,13 +74,32 @@ BingWallpaperApplet.prototype = {
 
             const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
             refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
+            this.controlItem = newMenuItem("");
 
             // Add items to the menu
             this.menu.addMenuItem(wallpaperTextPMI);
             this.menu.addMenuItem(copyrightTextPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            //TODO add prev, next buttons
-            
+            this.menu.addAction(_("Previous"), () => this.getWallpaperByIndex("prev"), "checked-symbolic");
+
+            this.prevBtn = this._newMenuIcon(
+                "checked-symbolic", 
+                this.controlItem, 
+                this._prevImage);
+
+        //                 let iconName = this._volumeToIcon(value);
+        // if (this.app_icon == null) {
+        //     this.icon.icon_name = iconName;
+        // }
+
+        // this.setValue(value);
+
+        // // send data to applet
+        // this.emit("values-changed", iconName, this.percentage);
+
+            // this.menu.addAction(_("Previous"), () => this.getWallpaperByIndex("prev"));
+            this.menu.addAction(_("Next"), () => this.getWallpaperByIndex("next"));
+            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(this.nextRefreshPMI);
             this.menu.addMenuItem(refreshNowPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -137,6 +149,38 @@ BingWallpaperApplet.prototype = {
         }
     },
 
+    
+    _newMenuIcon: function(icon_name, parent, fn, position = null, arg = null) {
+        let gicon = Gio.icon_new_for_string(icon_name);
+        let icon = new St.Icon({
+            /*icon_name: icon_name,*/
+            gicon: gicon,
+            style_class: 'popup-menu-icon',
+            x_expand: true,
+            y_expand: true,
+            icon_size: this._settings.get_int('controls-icon-size')
+        });
+
+        let iconBtn = new St.Button({
+            style_class: 'ci-action-btn',
+            can_focus: true,
+            child: icon,
+            /* x_align: Clutter.ActorAlign.END, // FIXME: errors on GNOME 3.28, default to center is ok */
+            x_expand: true,
+            y_expand: true
+        });
+
+        if (position !== null) {
+            parent.insert_child_at_index(iconBtn, position);
+        }
+        else {
+            parent.add_child(iconBtn);
+        }
+            
+        iconBtn.connect('button-press-event', fn.bind(this, arg));
+        return iconBtn;
+    },
+
     setWallpaperDirectory: function (path) {
         Utils.log(path);
         this.wallpaperDir = Utils.formatFolderName(path);
@@ -146,12 +190,16 @@ BingWallpaperApplet.prototype = {
     getWallpaperByIndex: function (sens) {
         switch (sens) {
             case "next":
-                this._idxWallpaper += 1;
+                if (_idxWallpaper > 0)
+                    _idxWallpaper -= 1;
                 break;
             case "prev":
-                this._idxWallpaper -= 1;
+
+                if (_idxWallpaper < 8)
+                    _idxWallpaper += 1;
+                break;
             default:
-                this._idxWallpaper = 0;
+                _idxWallpaper = 0;
                 break;
         }
 
@@ -273,9 +321,9 @@ BingWallpaperApplet.prototype = {
             this._downloadImage();
         };
 
-        // Retrieve json metadata, either from local file or remote
         const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
-
+        
+        // Retrieve json metadata, either from local file or remote
         let request = Soup.Message.new('GET', `${bingHost}${bingRequestPath}`);
         if (Soup.MAJOR_VERSION === 2) {
             _httpSession.queue_message(request, (_httpSession, message) => {
@@ -374,22 +422,12 @@ BingWallpaperApplet.prototype = {
     _bindSettings: function (metadata, orientation, panel_height, instance_id) {
 
         // Reference: https://github.com/linuxmint/Cinnamon/wiki/Applet,-Desklet-and-Extension-Settings-Reference
-
-        // Create the settings object
-        // In this case we use another way to get the uuid, the metadata object.
         this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
-
-        Object.keys(SettingsMap).forEach((key) => {
-            this._settings.bindProperty(
-                Settings.BindingDirection.IN,
-                key,
-                key,
-                function () {
-                    this._property_changed(key);
-                },
-                null
-            );
-        });
+        this._settings.bindProperty(Settings.BindingDirection.IN, 'wallpaperDir', 'wallpaperDir', this._property_changed("wallpaperDir"), null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, 'saveWallpaper', 'saveWallpaper', this._property_changed("saveWallpaper"), null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, 'refreshInterval', 'refreshInterval', this._property_changed("refreshInterval"), null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, 'refreshInterval', 'refreshInterval', this._property_changed("refreshInterval"), null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, 'dailyRefreshState', 'dailyRefreshState', this._property_changed("dailyRefreshState"), null);
 
         // Tell the settings provider we want to bind one of our settings keys to an applet property.
         // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
@@ -423,15 +461,7 @@ BingWallpaperApplet.prototype = {
                     Utils.log("daily refresh enabled");
                 }
                 break;
-            default:
-                Utils.log("no property changed");
-                break;
         }
-
-        // if (SettingsMap[key] !== this[key]) {
-        //     this._start_applet();
-        // }
-        SettingsMap[key] = this[key];
     },
 
     _saveWallpaperToImageFolder: async function () {
