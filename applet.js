@@ -11,6 +11,7 @@ const Lang = imports.lang;
 const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.js
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
 const Util = imports.misc.util;
+const St = imports.gi.St;
 
 const UUID = "bing-wallpaper@Tomfez";
 let SettingsMap = {
@@ -50,6 +51,12 @@ BingWallpaperApplet.prototype = {
 
         // We use this directory to store the current wallpaper and metadata
         const configPath = `${GLib.get_user_config_dir()}/bingwallpaper`;
+
+        const configPathObj = Gio.file_new_for_path(configPath);
+
+        if (!configPathObj.query_exists(null))
+            configPathObj.make_directory(null);
+
         this.wallpaperPath = `${configPath}/BingWallpaper.jpg`;
         this.metaDataPath = `${configPath}/meta.json`;
 
@@ -81,12 +88,17 @@ BingWallpaperApplet.prototype = {
             const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
             refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
 
-            // Add items to the menu
+            const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
+            const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
+
+            prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
+            nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
+
             this.menu.addMenuItem(wallpaperTextPMI);
             this.menu.addMenuItem(copyrightTextPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addAction(_("Previous"), () => this.getWallpaperByIndex("prev"));
-            this.menu.addAction(_("Next"), () => this.getWallpaperByIndex("next"));
+            this.menu.addMenuItem(prevItem);
+            this.menu.addMenuItem(nextItem);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(this.nextRefreshPMI);
             this.menu.addMenuItem(refreshNowPMI);
@@ -140,7 +152,9 @@ BingWallpaperApplet.prototype = {
     setWallpaperDirectory: function (path) {
         Utils.log(path);
         this.wallpaperDir = Utils.formatFolderName(path);
-        this._saveWallpaperToImageFolder();
+
+        if (this.saveWallpaper)
+            this._saveWallpaperToImageFolder();
     },
 
     getWallpaperByIndex: function (sens) {
@@ -279,6 +293,7 @@ BingWallpaperApplet.prototype = {
         // Retrieve json metadata, either from local file or remote
         const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
 
+        // Retrieve json metadata, either from local file or remote
         let request = Soup.Message.new('GET', `${bingHost}${bingRequestPath}`);
         if (Soup.MAJOR_VERSION === 2) {
             _httpSession.queue_message(request, (_httpSession, message) => {
@@ -428,9 +443,6 @@ BingWallpaperApplet.prototype = {
                 break;
         }
 
-        // if (SettingsMap[key] !== this[key]) {
-        //     this._start_applet();
-        // }
         SettingsMap[key] = this[key];
     },
 
