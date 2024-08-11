@@ -75,6 +75,18 @@ class Utils {
             return Math.round(seconds / 3600) + " " + (short ? "h" : _("hours"));
         }
     }
+
+    /**
+     * splitCopyrightsText
+     * @param {string} text - Copyrights text 
+     * @returns {Array[string]|string} - Returns the text split if not empty, else returns the text 
+     */
+    static splitCopyrightsText(text) {
+        if (text.length > 0)
+            return text.split(/(?=\(©)/g);
+
+        return text;
+    }
 }
 
 module.exports = { Utils }

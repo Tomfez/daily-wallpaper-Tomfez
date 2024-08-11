@@ -72,14 +72,14 @@ BingWallpaperApplet.prototype = {
             this.menu = new Applet.AppletPopupMenu(this, orientation);
             this.menuManager.addMenu(this.menu);
 
-            const copyrightSplit = this.imageData.copyright.split(/(?=\(©)/g);
-            const wallpaperTextPMI = new PopupMenu.PopupMenuItem(copyrightSplit[0], {
+            const copyrightSplit = Utils.splitCopyrightsText(this.imageData.copyright);
+            this.wallpaperTextPMI = new PopupMenu.PopupMenuItem(copyrightSplit[0], {
                 hover: false,
                 style_class: 'copyright-text'
             });
 
             const copyrightSubText = copyrightSplit[1].slice(1, copyrightSplit[1].length - 1); //removes the '()'
-            const copyrightTextPMI = new PopupMenu.PopupMenuItem(copyrightSubText, {
+            this.copyrightTextPMI = new PopupMenu.PopupMenuItem(copyrightSubText, {
                 sensitive: false,
             });
 
@@ -94,8 +94,8 @@ BingWallpaperApplet.prototype = {
             prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
             nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
 
-            this.menu.addMenuItem(wallpaperTextPMI);
-            this.menu.addMenuItem(copyrightTextPMI);
+            this.menu.addMenuItem(this.wallpaperTextPMI);
+            this.menu.addMenuItem(this.copyrightTextPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(prevItem);
             this.menu.addMenuItem(nextItem);
@@ -223,6 +223,10 @@ BingWallpaperApplet.prototype = {
 
             this.imageData = json.images[0];
             this.set_applet_tooltip(this.imageData.copyright);
+
+            const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
+            this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
+            this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
             Utils.log(`Got image url from local file : ${this.imageData.url}`);
 
             /** See if this data is current */
@@ -285,6 +289,10 @@ BingWallpaperApplet.prototype = {
             const json = JSON.parse(data);
             this.imageData = json.images[0];
             this.set_applet_tooltip(this.imageData.copyright);
+            
+            const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
+            this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
+            this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
             Utils.log(`Got image url from download: ${this.imageData.url}`);
 
             this._downloadImage();
