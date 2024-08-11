@@ -1,4 +1,5 @@
 const { Utils } = require("./utils");
+const { HttpSession } = require("./httpSession");
 
 const Applet = imports.ui.applet;
 const Soup = imports.gi.Soup;
@@ -23,14 +24,8 @@ let SettingsMap = {
 
 let _lastRefreshTime;
 let _nextRefresh;
-let _httpSession;
+let _httpSession = new HttpSession();
 let _idxWallpaper = 0;
-if (Soup.MAJOR_VERSION == 2) {
-    _httpSession = new Soup.SessionAsync();
-    Soup.Session.prototype.add_feature.call(_httpSession, new Soup.ProxyResolverDefault());
-} else { //version 3
-    _httpSession = new Soup.Session();
-}
 
 const bingHost = 'https://www.bing.com';
 
@@ -157,6 +152,29 @@ BingWallpaperApplet.prototype = {
             this._saveWallpaperToImageFolder();
     },
 
+    _saveWallpaperToImageFolder: async function () {
+        let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
+
+        if (!dir.query_exists(null))
+            dir.make_directory(null);
+
+        await Utils.delay(5000); // we wait 5s to be sure that the download of the current wallpaper is done
+        const currentDate = this.imageData.fullstartdate;
+
+        let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
+        imagePath = Gio.file_new_for_path(imagePath);
+
+        if (!imagePath.query_exists(null)) {
+            const source = Gio.file_new_for_path(this.wallpaperPath);
+
+            try {
+                source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
+            } catch (error) {
+                Utils.log("error _saveWallpaperToImageFolder: " + error);
+            }
+        }
+    },
+
     getWallpaperByIndex: function (sens) {
         switch (sens) {
             case "next":
@@ -173,7 +191,6 @@ BingWallpaperApplet.prototype = {
                 break;
         }
 
-        // We get the new metadata
         this._downloadMetaData();
         this._refresh();
     },
@@ -213,7 +230,7 @@ BingWallpaperApplet.prototype = {
         this._removeTimeout();
     },
 
-    //#region Download image and apply as background
+    //#region Metadata and wallpaper download
     _getMetaData: function () {
 
         /** Check for local metadata  */
@@ -289,7 +306,7 @@ BingWallpaperApplet.prototype = {
             const json = JSON.parse(data);
             this.imageData = json.images[0];
             this.set_applet_tooltip(this.imageData.copyright);
-            
+
             const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
             this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
             this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
@@ -298,88 +315,18 @@ BingWallpaperApplet.prototype = {
             this._downloadImage();
         };
 
-        // Retrieve json metadata, either from local file or remote
         const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
 
         // Retrieve json metadata, either from local file or remote
-        let request = Soup.Message.new('GET', `${bingHost}${bingRequestPath}`);
-        if (Soup.MAJOR_VERSION === 2) {
-            _httpSession.queue_message(request, (_httpSession, message) => {
-                if (message.status_code === 200) {
-                    process_result(message.response_body.data);
-                } else {
-                    Utils.log(`Failed to acquire image metadata (${message.status_code})`);
-                    this._setTimeout(60)  // Try again
-                }
-            });
-        } else { //version 3
-            _httpSession.send_and_read_async(request, Soup.MessagePriority.NORMAL, null, (_httpSession, message) => {
-                if (request.get_status() === 200) {
-                    const bytes = _httpSession.send_and_read_finish(message);
-                    process_result(ByteArray.toString(bytes.get_data()));
-                } else {
-                    Utils.log(`Failed to acquire image metadata (${request.get_status()})`);
-                    this._setTimeout(60)  // Try again
-                }
-            });
-        }
+        _httpSession.queryMetada(bingHost + bingRequestPath, process_result, () => this._setTimeout(1));
     },
 
     _downloadImage: function () {
-
-        Utils.log('downloading new image');
         const url = `${bingHost}${this.imageData.url}`;
         const regex = /_\d+x\d+./gm;
         const urlUHD = url.replace(regex, `_UHD.`);
-        let gFile = Gio.file_new_for_path(this.wallpaperPath);
 
-        // open the file
-        let fStream = gFile.replace(null, false, Gio.FileCreateFlags.NONE, null);
-
-        // create a http message
-        let request = Soup.Message.new('GET', urlUHD);
-
-        // keep track of total bytes written
-        let bytesTotal = 0;
-
-        if (Soup.MAJOR_VERSION === 2) {
-            // got_chunk event
-            request.connect('got_chunk', function (message, chunk) {
-                if (message.status_code === 200) { // only save the data we want, not content of 301 redirect page
-                    bytesTotal += fStream.write(chunk.get_data(), null);
-                }
-            });
-
-            // queue the http request
-            _httpSession.queue_message(request, (httpSession, message) => {
-                // request completed
-                fStream.close(null);
-                const contentLength = message.response_headers.get_content_length();
-                if (message.status_code === 200 && contentLength === bytesTotal) {
-                    this._setBackground();
-                } else {
-                    Utils.log("Couldn't fetch image from " + urlUHD);
-                    gFile.delete(null);
-                    this._setTimeout(60)  // Try again
-                }
-            });
-        } else { //version 3
-            _httpSession.send_and_read_async(request, Soup.MessagePriority.NORMAL, null, (httpSession, message) => {
-                if (request.get_status() === 200) {
-                    const bytes = _httpSession.send_and_read_finish(message);
-                    if (bytes && bytes.get_size() > 0) {
-                        fStream.write(bytes.get_data(), null);
-                    }
-                    // request completed
-                    fStream.close(null);
-                    Utils.log('Download successful');
-                    this._setBackground();
-                } else {
-                    Utils.log("Couldn't fetch image from " + urlUHD);
-                    this._setTimeout(60)  // Try again
-                }
-            });
-        }
+        _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, this._setBackground, () => this._setTimeout(1));
     },
 
     _setBackground: function () {
@@ -452,29 +399,6 @@ BingWallpaperApplet.prototype = {
         }
 
         SettingsMap[key] = this[key];
-    },
-
-    _saveWallpaperToImageFolder: async function () {
-        let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
-
-        if (!dir.query_exists(null))
-            dir.make_directory(null);
-
-        await Utils.delay(5000); // we wait 5s to be sure that the download of the current wallpaper is done
-        const currentDate = this.imageData.fullstartdate;
-
-        let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
-        imagePath = Gio.file_new_for_path(imagePath);
-
-        if (!imagePath.query_exists(null)) {
-            const source = Gio.file_new_for_path(this.wallpaperPath);
-
-            try {
-                source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
-            } catch (error) {
-                Utils.log("error _saveWallpaperToImageFolder: " + error);
-            }
-        }
     },
     //#endregion
 };
