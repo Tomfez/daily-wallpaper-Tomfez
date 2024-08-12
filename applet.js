@@ -2,8 +2,6 @@ const { Utils } = require("./utils");
 const { HttpSession } = require("./httpSession");
 
 const Applet = imports.ui.applet;
-const Soup = imports.gi.Soup;
-const ByteArray = imports.byteArray;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const { Clipboard, ClipboardType } = imports.gi.St;
@@ -13,6 +11,8 @@ const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.j
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
 const Util = imports.misc.util;
 const St = imports.gi.St;
+
+const currentDateTime = GLib.DateTime.new_now_local();
 
 const UUID = "bing-wallpaper@Tomfez";
 let SettingsMap = {
@@ -78,6 +78,14 @@ BingWallpaperApplet.prototype = {
                 sensitive: false,
             });
 
+
+            let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
+            let wallpaperDayText = `Bing wallpaper of the day for ${wallpaperDateFormatted}`;
+            this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
+                hover: false,
+                style_class: 'text-popupmenu'
+            });
+
             this.nextRefreshPMI = new PopupMenu.PopupMenuItem(this.refreshduetext, { sensitive: false });
 
             const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
@@ -91,6 +99,7 @@ BingWallpaperApplet.prototype = {
 
             this.menu.addMenuItem(this.wallpaperTextPMI);
             this.menu.addMenuItem(this.copyrightTextPMI);
+            this.menu.addMenuItem(this.dayOfWallpaperPMI);
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             this.menu.addMenuItem(prevItem);
             this.menu.addMenuItem(nextItem);
@@ -175,8 +184,8 @@ BingWallpaperApplet.prototype = {
         }
     },
 
-    getWallpaperByIndex: function (sens) {
-        switch (sens) {
+    getWallpaperByIndex: function (navigate) {
+        switch (navigate) {
             case "next":
                 if (_idxWallpaper > 0)
                     _idxWallpaper -= 1;
@@ -222,6 +231,7 @@ BingWallpaperApplet.prototype = {
 
         _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(minutes * 60);
     },
+    //#endregion
 
     destroy: function () {
         this._removeTimeout();
@@ -310,6 +320,9 @@ BingWallpaperApplet.prototype = {
             const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
             this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
             this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
+
+            const wallpaperDate = Utils.getNewWallpaperDate(this.imageData.enddate).format("%Y-%m-%d");
+            this.dayOfWallpaperPMI.setLabel(`Bing wallpaper of the day for ${wallpaperDate}`);
             Utils.log(`Got image url from download: ${this.imageData.url}`);
 
             this._downloadImage();
