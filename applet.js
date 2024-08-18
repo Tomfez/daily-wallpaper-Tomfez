@@ -2,8 +2,8 @@ const { Utils } = require("./utils");
 const { HttpSession } = require("./httpSession");
 
 const Applet = imports.ui.applet;
-const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
+const Gio = imports.gi.Gio;
 const { Clipboard, ClipboardType } = imports.gi.St;
 const Mainloop = imports.mainloop;
 const Lang = imports.lang;
@@ -19,7 +19,9 @@ let SettingsMap = {
     wallpaperDir: "Wallpaper path",
     saveWallpaper: false,
     refreshInterval: 300,
-    dailyRefreshState: true
+    dailyRefreshState: true,
+    selectedImagePreferences: "",
+    wallpaperDateSelect: ""
 };
 
 let _lastRefreshTime;
@@ -36,6 +38,7 @@ function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
 BingWallpaperApplet.prototype = {
     __proto__: Applet.IconApplet.prototype,
 
+    //#region Init
     _init: function (metadata, orientation, panel_height, instance_id) {
         // Generic Setup
         Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
@@ -55,76 +58,77 @@ BingWallpaperApplet.prototype = {
         this.wallpaperPath = `${configPath}/BingWallpaper.jpg`;
         this.metaDataPath = `${configPath}/meta.json`;
 
+        let file = Gio.file_new_for_path(this.metaDataPath);
+        if (!file.query_exists(null))
+            file.create(Gio.FileCreateFlags.NONE, null);
+
+        this.getWallpaperDatePreferences();
+        this.menuManager = new PopupMenu.PopupMenuManager(this);
+        this.menu = new Applet.AppletPopupMenu(this, orientation);
+
+        this.initMenu();
         // Begin refresh loop
         this._refresh();
+    },
 
-        // Wait 2s to get the metadata the first time the app is launched
-        setTimeout(() => {
-            this.setWallpaperDirectory(this.wallpaperDir);
+    initMenu: function () {
+        this.menuManager.addMenu(this.menu);
 
-            // #region -- Popup menu --
-            this.menuManager = new PopupMenu.PopupMenuManager(this);
-            this.menu = new Applet.AppletPopupMenu(this, orientation);
-            this.menuManager.addMenu(this.menu);
+        this.wallpaperTextPMI = new PopupMenu.PopupMenuItem("", {
+            hover: false,
+            style_class: 'copyright-text'
+        });
 
-            const copyrightSplit = Utils.splitCopyrightsText(this.imageData.copyright);
-            this.wallpaperTextPMI = new PopupMenu.PopupMenuItem(copyrightSplit[0], {
-                hover: false,
-                style_class: 'copyright-text'
-            });
+        this.copyrightTextPMI = new PopupMenu.PopupMenuItem("", {
+            sensitive: false,
+        });
 
-            const copyrightSubText = copyrightSplit[1].slice(1, copyrightSplit[1].length - 1); //removes the '()'
-            this.copyrightTextPMI = new PopupMenu.PopupMenuItem(copyrightSubText, {
-                sensitive: false,
-            });
+        let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
+        let wallpaperDayText = `Bing wallpaper of the day for ${wallpaperDateFormatted}`;
+        this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
+            hover: false,
+            style_class: 'text-popupmenu'
+        });
 
+        this.nextRefreshPMI = new PopupMenu.PopupMenuItem("", { sensitive: false });
 
-            let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
-            let wallpaperDayText = `Bing wallpaper of the day for ${wallpaperDateFormatted}`;
-            this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
-                hover: false,
-                style_class: 'text-popupmenu'
-            });
+        const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
+        refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
 
-            this.nextRefreshPMI = new PopupMenu.PopupMenuItem(this.refreshduetext, { sensitive: false });
+        const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
+        const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
 
-            const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
-            refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
+        prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
+        nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
 
-            const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
-            const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
-
-            prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
-            nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
-
-            this.menu.addMenuItem(this.wallpaperTextPMI);
-            this.menu.addMenuItem(this.copyrightTextPMI);
-            this.menu.addMenuItem(this.dayOfWallpaperPMI);
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addMenuItem(prevItem);
-            this.menu.addMenuItem(nextItem);
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addMenuItem(this.nextRefreshPMI);
-            this.menu.addMenuItem(refreshNowPMI);
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
-            this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
-
-            // this.menu.addAction(_("Set background image"), this._settings.get_boolean('set-background'));
-
-            //#endregion
-        }, 2000);
-
-        if (this.saveWallpaper)
-            this._saveWallpaperToImageFolder();
+        this.menu.addMenuItem(this.wallpaperTextPMI);
+        this.menu.addMenuItem(this.copyrightTextPMI);
+        this.menu.addMenuItem(this.dayOfWallpaperPMI);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addMenuItem(prevItem);
+        this.menu.addMenuItem(nextItem);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addMenuItem(this.nextRefreshPMI);
+        this.menu.addMenuItem(refreshNowPMI);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
+        this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
     },
 
     on_applet_clicked: function () {
         // Show/Hide the menu.
         this.menu.toggle();
     },
+
+    destroy: function () {
+        this._removeTimeout();
+    },
+    on_applet_removed_from_panel() {
+        this._removeTimeout();
+    },
+    //#endregion
 
     on_toggle_enableDailyrefreshPSMI: function () {
         if (!this.enableDailyrefreshPSMI.state) {
@@ -138,15 +142,11 @@ BingWallpaperApplet.prototype = {
     },
 
     _updateNextRefreshTextPopup: function () {
-        if (!this.dailyRefreshState) {
-            this.refreshduetext = "Refresh deactivated";
-        } else {
-            _nextRefresh = Utils.friendly_time_diff(_lastRefreshTime, true);
+        _nextRefresh = Utils.friendly_time_diff(_lastRefreshTime, true);
 
-            this.refreshduetext =
-                _("Next refresh") + ": " + (_lastRefreshTime ? _lastRefreshTime.format("%Y-%m-%d %X") : '-') +
-                " (" + _nextRefresh + ")";
-        }
+        this.refreshduetext =
+            _("Next refresh") + ": " + (_lastRefreshTime ? _lastRefreshTime.format("%Y-%m-%d %X") : '-') +
+            " (" + _nextRefresh + ")";
 
         if (this.nextRefreshPMI) {
             this.nextRefreshPMI.setLabel(this.refreshduetext);
@@ -156,18 +156,14 @@ BingWallpaperApplet.prototype = {
     setWallpaperDirectory: function (path) {
         Utils.log(path);
         this.wallpaperDir = Utils.formatFolderName(path);
-
-        if (this.saveWallpaper)
-            this._saveWallpaperToImageFolder();
     },
 
-    _saveWallpaperToImageFolder: async function () {
+    _saveWallpaperToImageFolder: function () {
         let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
 
         if (!dir.query_exists(null))
             dir.make_directory(null);
 
-        await Utils.delay(5000); // we wait 5s to be sure that the download of the current wallpaper is done
         const currentDate = this.imageData.fullstartdate;
 
         let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
@@ -191,7 +187,6 @@ BingWallpaperApplet.prototype = {
                     _idxWallpaper -= 1;
                 break;
             case "prev":
-
                 if (_idxWallpaper < 8)
                     _idxWallpaper += 1;
                 break;
@@ -204,16 +199,33 @@ BingWallpaperApplet.prototype = {
         this._refresh();
     },
 
+    getWallpaperDatePreferences: function () {
+        switch (this.selectedImagePreferences) {
+            case 2:
+                Utils.log("wallpaperDateSelect" + this.wallpaperDateSelect);
+                break;
+            case 1:
+                _idxWallpaper = 1;
+                break;
+            default:
+            case 0:
+                _idxWallpaper = 0;
+                break;
+        }
+    },
+
     //#region Timeout
     _refresh: function () {
-        Utils.log(`Beginning refresh`);
-        this._getMetaData();
         if (this.dailyRefreshState) {
+            Utils.log(`Beginning refresh`);
             this._setTimeout(this.refreshInterval);
+            this._getMetaData();
+            this._updateNextRefreshTextPopup();
         } else {
+            Utils.log("Timeout removed");
             this._removeTimeout();
+            this.refreshduetext = "Refresh deactivated";
         }
-        this._updateNextRefreshTextPopup();
     },
 
     _removeTimeout: function () {
@@ -233,22 +245,12 @@ BingWallpaperApplet.prototype = {
     },
     //#endregion
 
-    destroy: function () {
-        this._removeTimeout();
-    },
-    on_applet_removed_from_panel() {
-        this._removeTimeout();
-    },
-
     //#region Metadata and wallpaper download
     _getMetaData: function () {
-
-        /** Check for local metadata  */
         try {
-            const jsonString = GLib.file_get_contents(this.metaDataPath)[1];
-            const json = JSON.parse(jsonString);
+            /** Check for local metadata  */
+            this.getMetaJsonContent();
 
-            this.imageData = json.images[0];
             this.set_applet_tooltip(this.imageData.copyright);
 
             const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
@@ -266,7 +268,7 @@ BingWallpaperApplet.prototype = {
                 this.imageData.fullstartdate.substring(10, 12),
                 0
             );
-            const end_date = start_date.add_days(1);
+            const end_date = this.imageData.enddate;
             const now = GLib.DateTime.new_now_utc();
 
             if (now.to_unix() < end_date.to_unix()) {
@@ -302,6 +304,13 @@ BingWallpaperApplet.prototype = {
         }
     },
 
+    getMetaJsonContent: function () {
+        const jsonString = GLib.file_get_contents(this.metaDataPath)[1];
+        const json = JSON.parse(jsonString);
+
+        this.imageData = json.images[0];
+    },
+
     _downloadMetaData: function () {
         const process_result = data => {
 
@@ -323,7 +332,6 @@ BingWallpaperApplet.prototype = {
 
             const wallpaperDate = Utils.getNewWallpaperDate(this.imageData.enddate).format("%Y-%m-%d");
             this.dayOfWallpaperPMI.setLabel(`Bing wallpaper of the day for ${wallpaperDate}`);
-            Utils.log(`Got image url from download: ${this.imageData.url}`);
 
             this._downloadImage();
         };
@@ -335,14 +343,19 @@ BingWallpaperApplet.prototype = {
     },
 
     _downloadImage: function () {
+        Utils.log(`Got image url from download: ${this.imageData.url}`);
         const url = `${bingHost}${this.imageData.url}`;
         const regex = /_\d+x\d+./gm;
         const urlUHD = url.replace(regex, `_UHD.`);
 
-        _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, this._setBackground, () => this._setTimeout(1));
+        _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, () => this._setBackground(), () => this._setTimeout(1));
     },
 
     _setBackground: function () {
+        if (this.saveWallpaper)
+            this._saveWallpaperToImageFolder();
+
+        Utils.log("setting background");
         let gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
         const uri = 'file://' + this.wallpaperPath;
         gSetting.set_string('picture-uri', uri);
@@ -398,13 +411,10 @@ BingWallpaperApplet.prototype = {
                 this._refresh();
                 break;
             case "dailyRefreshState":
-                if (!val) {
-                    this._removeTimeout();
-                    Utils.log("daily refresh disabled");
-                } else {
-                    this._refresh();
-                    Utils.log("daily refresh enabled");
-                }
+                this._refresh();
+                break;
+            case "wallpaperDateSelect":
+                this.getWallpaperDatePreferences();
                 break;
             default:
                 Utils.log("no property changed");

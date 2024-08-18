@@ -1,6 +1,6 @@
 {
     "refreshInterval": {
-        "default": 60,
+        "default": 720,
         "description": "Update interval to check new wallpaper",
         "max": 1440,
         "min": 1,
@@ -26,5 +26,26 @@
         "description": "Enable daily refresh",
         "tooltip": "Enable daily refresh",
         "type": "checkbox"
+    },
+    "selectedImagePreferences": {
+        "type": "combobox",
+        "default": "Most recent",
+        "description": "Selected image",
+        "options": {
+            "Most recent": 0,
+            "Yesterday": 1,
+            "Other day": 2
+        },
+        "tooltip": "Select prefered wallpaper when the applet is launched"
+    },
+    "wallpaperDateSelect": {
+        "type": "datechooser",
+        "dependency": "selectedImagePreferences=2",
+        "description": "Choose a Date",
+        "default": {
+            "d": 1,
+            "m": 1,
+            "y": 2024
+        }
     }
 }

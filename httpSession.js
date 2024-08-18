@@ -6,19 +6,22 @@ const Soup = imports.gi.Soup;
 
 let _httpSession;
 
-class HttpSession {
+function HttpSession() {
+    this._init();
+}
 
+HttpSession.prototype = {
     /**
-     * constructor
+     * init
      */
-    constructor() {
+    _init: function () {
         if (Soup.MAJOR_VERSION == 2) {
             _httpSession = new Soup.SessionAsync();
             Soup.Session.prototype.add_feature.call(_httpSession, new Soup.ProxyResolverDefault());
         } else { //version 3
             _httpSession = new Soup.Session();
         }
-    }
+    },
 
     /**
      * queryMetada
@@ -27,7 +30,7 @@ class HttpSession {
      * @param {function} callbackError - The function to call when there is an error
      * @returns {function} - Returns the function to call
      */
-    queryMetada(url, callback, callbackError) {
+    queryMetada: function (url, callback, callbackError) {
         let request = Soup.Message.new('GET', url);
 
         if (Soup.MAJOR_VERSION === 2) {
@@ -50,7 +53,7 @@ class HttpSession {
                 }
             });
         }
-    }
+    },
 
     /**
      * downloadImageFromUrl
@@ -60,7 +63,7 @@ class HttpSession {
      * @param {function} callbackError - The function to call when there is an error
      * @returns {function} - Returns the function to call
      */
-    downloadImageFromUrl(url, wallpaperPath, callback, callbackError) {
+    downloadImageFromUrl: function (url, wallpaperPath, callback, callbackError) {
         Utils.log('downloading new image from ' + url);
 
         let gFile = Gio.file_new_for_path(wallpaperPath);
@@ -115,6 +118,6 @@ class HttpSession {
             });
         }
     }
-}
+};
 
 module.exports = { HttpSession }
