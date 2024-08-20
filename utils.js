@@ -97,6 +97,14 @@ class Utils {
         const day = date.substring(date.length - 2);
         return GLib.DateTime.new_utc(2024, 8, day, 15, 12, 30);
     }
+
+    /**
+     * getUserLanguage
+     * @returns {string} - Returns the current environment language
+     */
+    static getUserLanguage() {
+        return GLib.getenv("LANG").split(".")[0].replace("_", "-")
+    }
 }
 
 module.exports = { Utils }

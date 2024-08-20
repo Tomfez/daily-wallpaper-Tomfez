@@ -29,23 +29,58 @@
     },
     "selectedImagePreferences": {
         "type": "combobox",
-        "default": "Most recent",
+        "default": 0,
         "description": "Selected image",
         "options": {
             "Most recent": 0,
-            "Yesterday": 1,
-            "Other day": 2
+            "Yesterday": 1
         },
         "tooltip": "Select prefered wallpaper when the applet is launched"
     },
-    "wallpaperDateSelect": {
-        "type": "datechooser",
-        "dependency": "selectedImagePreferences=2",
-        "description": "Choose a Date",
-        "default": {
-            "d": 1,
-            "m": 1,
-            "y": 2024
+    "market": {
+        "type": "combobox",
+        "default": "auto",
+        "description": "Bing locale",
+        "options": {
+            "auto-auto": "auto",
+            "da-DK": "da-DK",
+            "de-AT": "de-AT",
+            "de-CH": "de-CH",
+            "de-DE": "de-DE",
+            "en-AU": "en-AU",
+            "en-CA": "en-CA",
+            "en-GB": "en-GB",
+            "en-ID": "en-ID",
+            "en-IN": "en-IN",
+            "en-MY": "en-MY",
+            "en-NZ": "en-NZ",
+            "en-PH": "en-PH",
+            "en-US": "en-US",
+            "en-ZA": "en-ZA",
+            "es-AR": "es-AR",
+            "es-CL": "es-CL",
+            "es-ES": "es-ES",
+            "es-MX": "es-MX",
+            "es-US": "es-US",
+            "fi-FI": "fi-FI",
+            "fr-BE": "fr-BE",
+            "fr-CA": "fr-CA",
+            "fr-CH": "fr-CH",
+            "fr-FR": "fr-FR",
+            "it-IT": "it-IT",
+            "ja-JP": "ja-JP",
+            "ko-KR": "ko-KR",
+            "nl-BE": "nl-BE",
+            "nl-NL": "nl-NL",
+            "no-NO": "no-NO",
+            "pl-PL": "pl-PL",
+            "pt-BR": "pt-BR",
+            "ru-RU": "ru-RU",
+            "sv-SE": "sv-SE",
+            "tr-TR": "tr-TR",
+            "zh-CN": "zh-CN",
+            "zh-HK": "zh-HK",
+            "zh-TW": "zh-TW"
         }
     }
 }

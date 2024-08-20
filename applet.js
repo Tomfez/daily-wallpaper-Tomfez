@@ -6,23 +6,13 @@ const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 const { Clipboard, ClipboardType } = imports.gi.St;
 const Mainloop = imports.mainloop;
-const Lang = imports.lang;
 const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.js
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
 const Util = imports.misc.util;
 const St = imports.gi.St;
 
 const currentDateTime = GLib.DateTime.new_now_local();
-
 const UUID = "bing-wallpaper@Tomfez";
-let SettingsMap = {
-    wallpaperDir: "Wallpaper path",
-    saveWallpaper: false,
-    refreshInterval: 300,
-    dailyRefreshState: true,
-    selectedImagePreferences: "",
-    wallpaperDateSelect: ""
-};
 
 let _lastRefreshTime;
 let _nextRefresh;
@@ -63,6 +53,24 @@ BingWallpaperApplet.prototype = {
             file.create(Gio.FileCreateFlags.NONE, null);
 
         this.getWallpaperDatePreferences();
+
+        if (this.market === "auto") {
+            const usrLang = Utils.getUserLanguage();
+            const options = this._settings.getOptions("market");
+
+            let res = false;
+            for (let k in options) {
+                if (k === usrLang) {
+                    res = true;
+                    break;
+                }
+            }
+
+            // If language not found, we use en-US as default
+            if (!res)
+                this.market = "en-US"
+        }
+
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
 
@@ -93,7 +101,7 @@ BingWallpaperApplet.prototype = {
         this.nextRefreshPMI = new PopupMenu.PopupMenuItem("", { sensitive: false });
 
         const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
-        refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
+        refreshNowPMI.connect('activate', this.initMenu.bind(this, function () { this._refresh() }));
 
         const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
         const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
@@ -153,12 +161,15 @@ BingWallpaperApplet.prototype = {
         }
     },
 
-    setWallpaperDirectory: function (path) {
-        Utils.log(path);
-        this.wallpaperDir = Utils.formatFolderName(path);
+    setWallpaperDirectory: function () {
+        Utils.log(this.wallpaperDir);
+        this.wallpaperDir = Utils.formatFolderName(this.wallpaperDir);
     },
 
     _saveWallpaperToImageFolder: function () {
+        if (!this.saveWallpaper)
+            return;
+
         let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
 
         if (!dir.query_exists(null))
@@ -201,9 +212,6 @@ BingWallpaperApplet.prototype = {
 
     getWallpaperDatePreferences: function () {
         switch (this.selectedImagePreferences) {
-            case 2:
-                Utils.log("wallpaperDateSelect" + this.wallpaperDateSelect);
-                break;
             case 1:
                 _idxWallpaper = 1;
                 break;
@@ -239,7 +247,7 @@ BingWallpaperApplet.prototype = {
         /** Cancel current timeout in event of an error and try again shortly */
         this._removeTimeout();
         Utils.log(`Setting timeout (${minutes}min)`);
-        this._timeout = Mainloop.timeout_add_seconds(minutes * 60, Lang.bind(this, this._refresh));
+        this._timeout = Mainloop.timeout_add_seconds(minutes * 60, this._setTimeout.bind(this, this._refresh));
 
         _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(minutes * 60);
     },
@@ -336,7 +344,7 @@ BingWallpaperApplet.prototype = {
             this._downloadImage();
         };
 
-        const bingRequestPath = '/HPImageArchive.aspx?format=js&idx=' + _idxWallpaper + '&n=1&mbl=1';
+        const bingRequestPath = `/HPImageArchive.aspx?format=js&idx=${_idxWallpaper}&n=1&mbl=1&mkt=${this.market}`;
 
         // Retrieve json metadata, either from local file or remote
         _httpSession.queryMetada(bingHost + bingRequestPath, process_result, () => this._setTimeout(1));
@@ -374,19 +382,12 @@ BingWallpaperApplet.prototype = {
         // Create the settings object
         // In this case we use another way to get the uuid, the metadata object.
         this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
-
-        Object.keys(SettingsMap).forEach((key) => {
-            this._settings.bindProperty(
-                Settings.BindingDirection.IN,
-                key,
-                key,
-                function () {
-                    this._property_changed(key);
-                },
-                null
-            );
-        });
-
+        this._settings.bindProperty(Settings.BindingDirection.IN, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, "refreshInterval", "refreshInterval", this._refresh, null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, "dailyRefreshState", "dailyRefreshState", this._refresh, null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, "selectedImagePreferences", "selectedImagePreferences", null, null);
+        this._settings.bindProperty(Settings.BindingDirection.IN, "market", "market", null, null);
         // Tell the settings provider we want to bind one of our settings keys to an applet property.
         // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
         //     'settings-test-scale',                     // The key of the UI control associated with the setting in the "settings-schema.json" file.
@@ -394,34 +395,6 @@ BingWallpaperApplet.prototype = {
         //     this.onSettingsChanged,                    // Method to be called when the setting value changes.
         //     null                                       // Optional - it can be left off entirely, or used to pass any extra object to the callback if desired.
         // );
-    },
-
-    _property_changed: function (key) {
-        const val = this._settings.getValue(key);
-
-        switch (key) {
-            case "wallpaperDir":
-                this.setWallpaperDirectory(val);
-                break;
-            case "saveWallpaper":
-                if (this.saveWallpaper)
-                    this._saveWallpaperToImageFolder();
-                break;
-            case "refreshInterval":
-                this._refresh();
-                break;
-            case "dailyRefreshState":
-                this._refresh();
-                break;
-            case "wallpaperDateSelect":
-                this.getWallpaperDatePreferences();
-                break;
-            default:
-                Utils.log("no property changed");
-                break;
-        }
-
-        SettingsMap[key] = this[key];
     },
     //#endregion
 };
