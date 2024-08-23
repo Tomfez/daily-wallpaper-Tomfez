@@ -103,7 +103,7 @@ class Utils {
      * @returns {string} - Returns the current environment language
      */
     static getUserLanguage() {
-        return GLib.getenv("LANG").split(".")[0].replace("_", "-")
+        return GLib.getenv("LANG").split(".")[0].replace("_", "-");
     }
 }
 

@@ -4,6 +4,7 @@ const { HttpSession } = require("./httpSession");
 const Applet = imports.ui.applet;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
+const Lang = imports.lang;
 const { Clipboard, ClipboardType } = imports.gi.St;
 const Mainloop = imports.mainloop;
 const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.js
@@ -22,384 +23,388 @@ let _idxWallpaper = 0;
 const bingHost = 'https://www.bing.com';
 
 function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
-    this._init(metadata, orientation, panel_height, instance_id);
+  this._init(metadata, orientation, panel_height, instance_id);
 }
 
 BingWallpaperApplet.prototype = {
-    __proto__: Applet.IconApplet.prototype,
+  __proto__: Applet.IconApplet.prototype,
 
-    //#region Init
-    _init: function (metadata, orientation, panel_height, instance_id) {
-        // Generic Setup
-        Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
-        this.set_applet_icon_symbolic_name("bing-wallpaper");
-        this.set_applet_tooltip('Bing Desktop Wallpaper');
+  //#region Init
+  _init: function (metadata, orientation, panel_height, instance_id) {
+    // Generic Setup
+    Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
+    this.set_applet_icon_symbolic_name("bing-wallpaper");
+    this.set_applet_tooltip('Bing Desktop Wallpaper');
 
-        this._bindSettings(metadata, orientation, panel_height, instance_id);
+    this._bindSettings(metadata, orientation, panel_height, instance_id);
 
-        // We use this directory to store the current wallpaper and metadata
-        const configPath = `${GLib.get_user_config_dir()}/bingwallpaper`;
+    // We use this directory to store the current wallpaper and metadata
+    const configPath = `${GLib.get_user_config_dir()}/bingwallpaper`;
 
-        const configPathObj = Gio.file_new_for_path(configPath);
+    const configPathObj = Gio.file_new_for_path(configPath);
 
-        if (!configPathObj.query_exists(null))
-            configPathObj.make_directory(null);
+    if (!configPathObj.query_exists(null))
+      configPathObj.make_directory(null);
 
-        this.wallpaperPath = `${configPath}/BingWallpaper.jpg`;
-        this.metaDataPath = `${configPath}/meta.json`;
+    this.wallpaperPath = `${configPath}/BingWallpaper.jpg`;
+    this.metaDataPath = `${configPath}/meta.json`;
 
-        let file = Gio.file_new_for_path(this.metaDataPath);
-        if (!file.query_exists(null))
-            file.create(Gio.FileCreateFlags.NONE, null);
+    let file = Gio.file_new_for_path(this.metaDataPath);
+    if (!file.query_exists(null))
+      file.create(Gio.FileCreateFlags.NONE, null);
 
-        this.getWallpaperDatePreferences();
+    this.getWallpaperDatePreferences();
 
-        if (this.market === "auto") {
-            const usrLang = Utils.getUserLanguage();
-            const options = this._settings.getOptions("market");
+    if (this.market === "auto") {
+      const usrLang = Utils.getUserLanguage();
+      const options = this._settings.getOptions("market");
 
-            let res = false;
-            for (let k in options) {
-                if (k === usrLang) {
-                    res = true;
-                    break;
-                }
-            }
-
-            // If language not found, we use en-US as default
-            if (!res)
-                this.market = "en-US"
+      let res = false;
+      for (let k in options) {
+        if (k === usrLang) {
+          res = true;
+          break;
         }
+      }
 
-        this.menuManager = new PopupMenu.PopupMenuManager(this);
-        this.menu = new Applet.AppletPopupMenu(this, orientation);
+      // If language not found, we use en-US as default
+      if (!res)
+        this.market = "en-US"
+    }
 
-        this.initMenu();
-        // Begin refresh loop
-        this._refresh();
-    },
+    this.menuManager = new PopupMenu.PopupMenuManager(this);
+    this.menu = new Applet.AppletPopupMenu(this, orientation);
 
-    initMenu: function () {
-        this.menuManager.addMenu(this.menu);
+    this.initMenu();
+    // Begin refresh loop
+    this._refresh();
+  },
 
-        this.wallpaperTextPMI = new PopupMenu.PopupMenuItem("", {
-            hover: false,
-            style_class: 'copyright-text'
-        });
+  initMenu: function () {
+    this.menuManager.addMenu(this.menu);
 
-        this.copyrightTextPMI = new PopupMenu.PopupMenuItem("", {
-            sensitive: false,
-        });
+    this.wallpaperTextPMI = new PopupMenu.PopupMenuItem("", {
+      hover: false,
+      style_class: 'copyright-text'
+    });
 
-        let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
-        let wallpaperDayText = `Bing wallpaper of the day for ${wallpaperDateFormatted}`;
-        this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
-            hover: false,
-            style_class: 'text-popupmenu'
-        });
+    this.copyrightTextPMI = new PopupMenu.PopupMenuItem("", {
+      sensitive: false,
+    });
 
-        this.nextRefreshPMI = new PopupMenu.PopupMenuItem("", { sensitive: false });
+    let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
+    let wallpaperDayText = `Bing wallpaper of the day for ${wallpaperDateFormatted}`;
+    this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
+      hover: false,
+      style_class: 'text-popupmenu'
+    });
 
-        const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
-        refreshNowPMI.connect('activate', this.initMenu.bind(this, function () { this._refresh() }));
+    this.nextRefreshPMI = new PopupMenu.PopupMenuItem("", { sensitive: false });
 
-        const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
-        const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
+    const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
+    refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
 
-        prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
-        nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
+    const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
+    const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
 
-        this.menu.addMenuItem(this.wallpaperTextPMI);
-        this.menu.addMenuItem(this.copyrightTextPMI);
-        this.menu.addMenuItem(this.dayOfWallpaperPMI);
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addMenuItem(prevItem);
-        this.menu.addMenuItem(nextItem);
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addMenuItem(this.nextRefreshPMI);
-        this.menu.addMenuItem(refreshNowPMI);
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
-        this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
-    },
+    prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
+    nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
 
-    on_applet_clicked: function () {
-        // Show/Hide the menu.
-        this.menu.toggle();
-    },
+    this.menu.addMenuItem(this.wallpaperTextPMI);
+    this.menu.addMenuItem(this.copyrightTextPMI);
+    this.menu.addMenuItem(this.dayOfWallpaperPMI);
+    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    this.menu.addMenuItem(prevItem);
+    this.menu.addMenuItem(nextItem);
+    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    this.menu.addMenuItem(this.nextRefreshPMI);
+    this.menu.addMenuItem(refreshNowPMI);
+    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
+    this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
+    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
+  },
 
-    destroy: function () {
-        this._removeTimeout();
-    },
-    on_applet_removed_from_panel() {
-        this._removeTimeout();
-    },
-    //#endregion
+  on_applet_clicked: function () {
+    // Show/Hide the menu.
+    this.menu.toggle();
+  },
 
-    on_toggle_enableDailyrefreshPSMI: function () {
-        if (!this.enableDailyrefreshPSMI.state) {
-            this._removeTimeout();
-            Utils.log("daily refresh disabled");
-        } else {
-            this._refresh();
-            Utils.log("daily refresh enabled");
-        }
-        this._settings.setValue("dailyRefreshState", this.enableDailyrefreshPSMI.state);
-    },
+  destroy: function () {
+    this._removeTimeout();
+  },
+  on_applet_removed_from_panel() {
+    this._removeTimeout();
+  },
+  //#endregion
 
-    _updateNextRefreshTextPopup: function () {
-        _nextRefresh = Utils.friendly_time_diff(_lastRefreshTime, true);
+  on_toggle_enableDailyrefreshPSMI: function () {
+    if (!this.dailyRefreshState) {
+      this._removeTimeout();
+      Utils.log("daily refresh disabled");
+    } else {
+      this._refresh();
+      Utils.log("daily refresh enabled");
+    }
+  },
 
-        this.refreshduetext =
-            _("Next refresh") + ": " + (_lastRefreshTime ? _lastRefreshTime.format("%Y-%m-%d %X") : '-') +
-            " (" + _nextRefresh + ")";
+  _updateNextRefreshTextPopup: function () {
+    _nextRefresh = Utils.friendly_time_diff(_lastRefreshTime, true);
 
-        if (this.nextRefreshPMI) {
-            this.nextRefreshPMI.setLabel(this.refreshduetext);
-        }
-    },
+    this.refreshduetext =
+      _("Next refresh") + ": " + (_lastRefreshTime ? _lastRefreshTime.format("%Y-%m-%d %X") : '-') +
+      " (" + _nextRefresh + ")";
 
-    setWallpaperDirectory: function () {
-        Utils.log(this.wallpaperDir);
-        this.wallpaperDir = Utils.formatFolderName(this.wallpaperDir);
-    },
+    if (this.nextRefreshPMI) {
+      this.nextRefreshPMI.setLabel(this.refreshduetext);
+    }
+  },
 
-    _saveWallpaperToImageFolder: function () {
-        if (!this.saveWallpaper)
-            return;
+  setWallpaperDirectory: function () {
+    Utils.log(this.wallpaperDir);
+    this.wallpaperDir = Utils.formatFolderName(this.wallpaperDir);
+  },
 
-        let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
+  _saveWallpaperToImageFolder: function () {
+    if (!this.saveWallpaper)
+      return;
 
-        if (!dir.query_exists(null))
-            dir.make_directory(null);
+    let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
 
-        const currentDate = this.imageData.fullstartdate;
+    if (!dir.query_exists(null))
+      dir.make_directory(null);
 
-        let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
-        imagePath = Gio.file_new_for_path(imagePath);
+    const currentDate = this.imageData.fullstartdate;
 
-        if (!imagePath.query_exists(null)) {
-            const source = Gio.file_new_for_path(this.wallpaperPath);
+    let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
+    imagePath = Gio.file_new_for_path(imagePath);
 
-            try {
-                source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
-            } catch (error) {
-                Utils.log("error _saveWallpaperToImageFolder: " + error);
-            }
-        }
-    },
+    if (!imagePath.query_exists(null)) {
+      const source = Gio.file_new_for_path(this.wallpaperPath);
 
-    getWallpaperByIndex: function (navigate) {
-        switch (navigate) {
-            case "next":
-                if (_idxWallpaper > 0)
-                    _idxWallpaper -= 1;
-                break;
-            case "prev":
-                if (_idxWallpaper < 8)
-                    _idxWallpaper += 1;
-                break;
-            default:
-                _idxWallpaper = 0;
-                break;
-        }
+      try {
+        source.copy(imagePath, Gio.FileCopyFlags.NONE, null, null);
+      } catch (error) {
+        Utils.log("error _saveWallpaperToImageFolder: " + error);
+      }
+    }
+  },
 
-        this._downloadMetaData();
-        this._refresh();
-    },
+  getWallpaperByIndex: function (navigate) {
+    switch (navigate) {
+      case "next":
+        if (_idxWallpaper > 0)
+          _idxWallpaper -= 1;
+        break;
+      case "prev":
+        if (_idxWallpaper < 8)
+          _idxWallpaper += 1;
+        break;
+      default:
+        _idxWallpaper = 0;
+        break;
+    }
 
-    getWallpaperDatePreferences: function () {
-        switch (this.selectedImagePreferences) {
-            case 1:
-                _idxWallpaper = 1;
-                break;
-            default:
-            case 0:
-                _idxWallpaper = 0;
-                break;
-        }
-    },
+    this._downloadMetaData();
+    this._setTimeout(this.refreshInterval);
+  },
 
-    //#region Timeout
-    _refresh: function () {
-        if (this.dailyRefreshState) {
-            Utils.log(`Beginning refresh`);
-            this._setTimeout(this.refreshInterval);
-            this._getMetaData();
-            this._updateNextRefreshTextPopup();
-        } else {
-            Utils.log("Timeout removed");
-            this._removeTimeout();
-            this.refreshduetext = "Refresh deactivated";
-        }
-    },
+  getWallpaperDatePreferences: function () {
+    switch (this.selectedImagePreferences) {
+      case 1:
+        _idxWallpaper = 1;
+        break;
+      default:
+      case 0:
+        _idxWallpaper = 0;
+        break;
+    }
+  },
 
-    _removeTimeout: function () {
-        if (this._timeout) {
-            Mainloop.source_remove(this._timeout);
-            this._timeout = null;
-        }
-    },
+  //#region Timeout
+  _refresh: function () {
+    if (this.dailyRefreshState) {
+      Utils.log(`Beginning refresh`);
+      this._setTimeout(this.refreshInterval);
+      this._getMetaData();
+    } else {
+      Utils.log("Timeout removed");
+      this._removeTimeout();
+      this.nextRefreshPMI.setLabel("Refresh deactivated");
 
-    _setTimeout: function (minutes) {
-        /** Cancel current timeout in event of an error and try again shortly */
-        this._removeTimeout();
-        Utils.log(`Setting timeout (${minutes}min)`);
-        this._timeout = Mainloop.timeout_add_seconds(minutes * 60, this._setTimeout.bind(this, this._refresh));
+      this.getMetaJsonContent();
+      const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
+      this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
+      this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
+    }
+  },
 
-        _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(minutes * 60);
-    },
-    //#endregion
+  _removeTimeout: function () {
+    if (this._timeout) {
+      Mainloop.source_remove(this._timeout);
+      this._timeout = null;
+    }
+  },
 
-    //#region Metadata and wallpaper download
-    _getMetaData: function () {
-        try {
-            /** Check for local metadata  */
-            this.getMetaJsonContent();
+  _setTimeout: function (minutes) {
+    /** Cancel current timeout in event of an error and try again shortly */
+    this._removeTimeout();
+    Utils.log(`Setting timeout (${minutes}min)`);
+    this._timeout = Mainloop.timeout_add_seconds(minutes * 60, this._setTimeout.bind(this, this._refresh));
 
-            this.set_applet_tooltip(this.imageData.copyright);
+    _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(minutes * 60);
+    this._updateNextRefreshTextPopup();
+  },
+  //#endregion
 
-            const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
-            this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
-            this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
-            Utils.log(`Got image url from local file : ${this.imageData.url}`);
+  //#region Metadata and wallpaper download
+  _getMetaData: function () {
+    try {
+      /** Check for local metadata  */
+      this.getMetaJsonContent();
 
-            /** See if this data is current */
-            const start_date = GLib.DateTime.new(
-                GLib.TimeZone.new_utc(),
-                this.imageData.fullstartdate.substring(0, 4),
-                this.imageData.fullstartdate.substring(4, 6),
-                this.imageData.fullstartdate.substring(6, 8),
-                this.imageData.fullstartdate.substring(8, 10),
-                this.imageData.fullstartdate.substring(10, 12),
-                0
-            );
-            const end_date = this.imageData.enddate;
-            const now = GLib.DateTime.new_now_utc();
+      this.set_applet_tooltip(this.imageData.copyright);
 
-            if (now.to_unix() < end_date.to_unix()) {
-                Utils.log('metadata up to date');
+      const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
+      this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
+      this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
+      Utils.log(`Got image url from local file : ${this.imageData.url}`);
 
-                // Look for image file, check this is up to date
-                let image_file = Gio.file_new_for_path(this.wallpaperPath);
+      /** See if this data is current */
+      const end_date = GLib.DateTime.new(
+        GLib.TimeZone.new_utc(),
+        this.imageData.enddate.substring(0, 4),
+        this.imageData.enddate.substring(4, 6),
+        this.imageData.enddate.substring(6, 8),
+        this.imageData.fullstartdate.substring(8, 10),
+        this.imageData.fullstartdate.substring(10, 12),
+        0
+      );
 
-                if (image_file.query_exists(null)) {
+      const now = GLib.DateTime.new_now_utc();
 
-                    let image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
-                    let image_file_size = image_file_info.get_size();
-                    let image_file_mod_secs = image_file_info.get_modification_time().tv_sec;
+      if (now.to_unix() < end_date.to_unix()) {
+        Utils.log('metadata up to date');
 
-                    if ((image_file_mod_secs > end_date.to_unix()) || !image_file_size) { // Is the image old, or empty?
-                        this._downloadImage();
-                    } else {
-                        Utils.log("image appears up to date");
-                    }
-                } else {
-                    Utils.log("No image file found");
-                    this._downloadImage();
-                }
-            }
-            else {
-                Utils.log('metadata is old, requesting new...');
-                this._downloadMetaData();
-            }
-        } catch (err) {
-            Utils.log(`Unable to get local metadata ${err}`);
-            /** File does not exist or there was an error processing it */
-            this._downloadMetaData();
-        }
-    },
+        // Look for image file, check this is up to date
+        let image_file = Gio.file_new_for_path(this.wallpaperPath);
 
-    getMetaJsonContent: function () {
-        const jsonString = GLib.file_get_contents(this.metaDataPath)[1];
-        const json = JSON.parse(jsonString);
+        if (image_file.query_exists(null)) {
 
-        this.imageData = json.images[0];
-    },
+          let image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
+          let image_file_size = image_file_info.get_size();
+          let image_file_mod_secs = image_file_info.get_modification_time().tv_sec;
 
-    _downloadMetaData: function () {
-        const process_result = data => {
-
-            // Write to meta data file
-            let gFile = Gio.file_new_for_path(this.metaDataPath);
-            let fStream = gFile.replace(null, false, Gio.FileCreateFlags.NONE, null);
-            let toWrite = data.length;
-            while (toWrite > 0)
-                toWrite -= fStream.write(data, null);
-            fStream.close(null);
-
-            const json = JSON.parse(data);
-            this.imageData = json.images[0];
-            this.set_applet_tooltip(this.imageData.copyright);
-
-            const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
-            this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
-            this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
-
-            const wallpaperDate = Utils.getNewWallpaperDate(this.imageData.enddate).format("%Y-%m-%d");
-            this.dayOfWallpaperPMI.setLabel(`Bing wallpaper of the day for ${wallpaperDate}`);
-
+          if ((image_file_mod_secs > end_date.to_unix()) || !image_file_size) { // Is the image old, or empty?
             this._downloadImage();
-        };
+          } else {
+            Utils.log("image appears up to date");
+          }
+        } else {
+          Utils.log("No image file found");
+          this._downloadImage();
+        }
+      }
+      else {
+        Utils.log('metadata is old, requesting new...');
+        this._downloadMetaData();
+      }
+    } catch (err) {
+      Utils.log(`Unable to get local metadata ${err}`);
+      /** File does not exist or there was an error processing it */
+      this._downloadMetaData();
+    }
+  },
 
-        const bingRequestPath = `/HPImageArchive.aspx?format=js&idx=${_idxWallpaper}&n=1&mbl=1&mkt=${this.market}`;
+  getMetaJsonContent: function () {
+    const jsonString = GLib.file_get_contents(this.metaDataPath)[1];
+    const json = JSON.parse(jsonString);
 
-        // Retrieve json metadata, either from local file or remote
-        _httpSession.queryMetada(bingHost + bingRequestPath, process_result, () => this._setTimeout(1));
-    },
+    this.imageData = json.images[0];
+  },
 
-    _downloadImage: function () {
-        Utils.log(`Got image url from download: ${this.imageData.url}`);
-        const url = `${bingHost}${this.imageData.url}`;
-        const regex = /_\d+x\d+./gm;
-        const urlUHD = url.replace(regex, `_UHD.`);
+  _downloadMetaData: function () {
+    const process_result = data => {
 
-        _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, () => this._setBackground(), () => this._setTimeout(1));
-    },
+      // Write to meta data file
+      let gFile = Gio.file_new_for_path(this.metaDataPath);
+      let fStream = gFile.replace(null, false, Gio.FileCreateFlags.NONE, null);
+      let toWrite = data.length;
+      while (toWrite > 0)
+        toWrite -= fStream.write(data, null);
+      fStream.close(null);
 
-    _setBackground: function () {
-        if (this.saveWallpaper)
-            this._saveWallpaperToImageFolder();
+      const json = JSON.parse(data);
+      this.imageData = json.images[0];
+      this.set_applet_tooltip(this.imageData.copyright);
 
-        Utils.log("setting background");
-        let gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
-        const uri = 'file://' + this.wallpaperPath;
-        gSetting.set_string('picture-uri', uri);
-        gSetting.set_string('picture-options', 'zoom');
-        Gio.Settings.sync();
-        gSetting.apply();
-    },
-    //#endregion
+      const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
+      this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
+      this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
 
-    // #region -- Settings --
+      const wallpaperDate = Utils.getNewWallpaperDate(this.imageData.enddate).format("%Y-%m-%d");
+      this.dayOfWallpaperPMI.setLabel(`Bing wallpaper of the day for ${wallpaperDate}`);
 
-    _bindSettings: function (metadata, orientation, panel_height, instance_id) {
+      this._downloadImage();
+    };
 
-        // Reference: https://github.com/linuxmint/Cinnamon/wiki/Applet,-Desklet-and-Extension-Settings-Reference
+    const bingRequestPath = `/HPImageArchive.aspx?format=js&idx=${_idxWallpaper}&n=1&mbl=1&mkt=${this.market}`;
 
-        // Create the settings object
-        // In this case we use another way to get the uuid, the metadata object.
-        this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
-        this._settings.bindProperty(Settings.BindingDirection.IN, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
-        this._settings.bindProperty(Settings.BindingDirection.IN, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
-        this._settings.bindProperty(Settings.BindingDirection.IN, "refreshInterval", "refreshInterval", this._refresh, null);
-        this._settings.bindProperty(Settings.BindingDirection.IN, "dailyRefreshState", "dailyRefreshState", this._refresh, null);
-        this._settings.bindProperty(Settings.BindingDirection.IN, "selectedImagePreferences", "selectedImagePreferences", null, null);
-        this._settings.bindProperty(Settings.BindingDirection.IN, "market", "market", null, null);
-        // Tell the settings provider we want to bind one of our settings keys to an applet property.
-        // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
-        //     'settings-test-scale',                     // The key of the UI control associated with the setting in the "settings-schema.json" file.
-        //     'settings-test-scale',                     // Name that is going to be used as the applet property.
-        //     this.onSettingsChanged,                    // Method to be called when the setting value changes.
-        //     null                                       // Optional - it can be left off entirely, or used to pass any extra object to the callback if desired.
-        // );
-    },
-    //#endregion
+    // Retrieve json metadata, either from local file or remote
+    _httpSession.queryMetada(bingHost + bingRequestPath, process_result, () => this._setTimeout(1));
+  },
+
+  _downloadImage: function () {
+    Utils.log(`Got image url from download: ${this.imageData.url}`);
+    const url = `${bingHost}${this.imageData.url}`;
+    const regex = /_\d+x\d+./gm;
+    const urlUHD = url.replace(regex, `_UHD.`);
+
+    _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, () => this._setBackground(), () => this._setTimeout(1));
+  },
+
+  _setBackground: function () {
+    if (this.saveWallpaper)
+      this._saveWallpaperToImageFolder();
+
+    Utils.log("setting background");
+    let gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
+    const uri = 'file://' + this.wallpaperPath;
+    gSetting.set_string('picture-uri', uri);
+    gSetting.set_string('picture-options', 'zoom');
+    Gio.Settings.sync();
+    gSetting.apply();
+  },
+  //#endregion
+
+  // #region -- Settings --
+
+  _bindSettings: function (metadata, orientation, panel_height, instance_id) {
+
+    // Reference: https://github.com/linuxmint/Cinnamon/wiki/Applet,-Desklet-and-Extension-Settings-Reference
+
+    // Create the settings object
+    // In this case we use another way to get the uuid, the metadata object.
+    this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
+    this._settings.bindProperty(null, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
+    this._settings.bindProperty(null, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
+    this._settings.bindProperty(null, "refreshInterval", "refreshInterval", this._refresh, null);
+    this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
+    this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
+    this._settings.bindProperty(null, "market", "market", null, null);
+    // Tell the settings provider we want to bind one of our settings keys to an applet property.
+    // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
+    //     'settings-test-scale',                     // The key of the UI control associated with the setting in the "settings-schema.json" file.
+    //     'settings-test-scale',                     // Name that is going to be used as the applet property.
+    //     this.onSettingsChanged,                    // Method to be called when the setting value changes.
+    //     null                                       // Optional - it can be left off entirely, or used to pass any extra object to the callback if desired.
+    // );
+  },
+  //#endregion
 };
 
 
 function main(metadata, orientation, panelHeight, instanceId) {
-    return new BingWallpaperApplet(metadata, orientation, panelHeight, instanceId);
+  return new BingWallpaperApplet(metadata, orientation, panelHeight, instanceId);
 }
