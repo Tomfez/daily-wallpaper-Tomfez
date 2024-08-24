@@ -82,5 +82,18 @@
             "zh-HK": "zh-HK",
             "zh-TW": "zh-TW"
         }
+    },
+    "image-aspect-options": {
+        "type": "combobox",
+        "default": "zoom",
+        "description": "Image aspect",
+        "options": {
+            "zoom": "zoom",
+            "centered": "centered",
+            "scaled": "scaled",
+            "stretched": "stretched",
+            "spanned": "spanned",
+            "wallpaper": "wallpaper"
+        }
     }
 }

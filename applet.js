@@ -134,8 +134,10 @@ BingWallpaperApplet.prototype = {
   destroy: function () {
     this._removeTimeout();
   },
-  on_applet_removed_from_panel() {
+  on_applet_removed_from_panel: function() {
     this._removeTimeout();
+    this.menu.destroy();
+    this._settings.finalize();
   },
   //#endregion
 
@@ -361,18 +363,22 @@ BingWallpaperApplet.prototype = {
     const regex = /_\d+x\d+./gm;
     const urlUHD = url.replace(regex, `_UHD.`);
 
-    _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, () => this._setBackground(), () => this._setTimeout(1));
+    const process_result = () => {
+      if (this.saveWallpaper)
+        this._saveWallpaperToImageFolder();
+
+      this._setBackground();
+    };
+
+    _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, () => process_result, () => this._setTimeout(1));
   },
 
   _setBackground: function () {
-    if (this.saveWallpaper)
-      this._saveWallpaperToImageFolder();
-
     Utils.log("setting background");
     let gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
     const uri = 'file://' + this.wallpaperPath;
     gSetting.set_string('picture-uri', uri);
-    gSetting.set_string('picture-options', 'zoom');
+    gSetting.set_string('picture-options', this.pictureOptions);
     Gio.Settings.sync();
     gSetting.apply();
   },
@@ -393,6 +399,7 @@ BingWallpaperApplet.prototype = {
     this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
     this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
     this._settings.bindProperty(null, "market", "market", null, null);
+    this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
     // Tell the settings provider we want to bind one of our settings keys to an applet property.
     // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
     //     'settings-test-scale',                     // The key of the UI control associated with the setting in the "settings-schema.json" file.
