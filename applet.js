@@ -38,6 +38,8 @@ BingWallpaperApplet.prototype = {
 
     this._bindSettings(metadata, orientation, panel_height, instance_id);
 
+    global.DEBUG = this.debug;
+
     // We use this directory to store the current wallpaper and metadata
     const configPath = `${GLib.get_user_config_dir()}/bingwallpaper`;
 
@@ -134,7 +136,7 @@ BingWallpaperApplet.prototype = {
   destroy: function () {
     this._removeTimeout();
   },
-  on_applet_removed_from_panel: function() {
+  on_applet_removed_from_panel: function () {
     this._removeTimeout();
     this.menu.destroy();
     this._settings.finalize();
@@ -400,6 +402,8 @@ BingWallpaperApplet.prototype = {
     this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
     this._settings.bindProperty(null, "market", "market", null, null);
     this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
+    this._settings.bindProperty(null, 'debugToggle', 'debug', (val) => { global.DEBUG = val; }, null);
+
     // Tell the settings provider we want to bind one of our settings keys to an applet property.
     // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
     //     'settings-test-scale',                     // The key of the UI control associated with the setting in the "settings-schema.json" file.

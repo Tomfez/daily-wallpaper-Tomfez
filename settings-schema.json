@@ -1,4 +1,52 @@
 {
+    "layout": {
+        "type": "layout",
+        "pages": [
+            "pageGeneral",
+            "pageHelp"
+        ],
+        "pageGeneral": {
+            "type": "page",
+            "title": "General",
+            "sections": [
+                "section0",
+                "section1"
+            ]
+        },
+        "pageHelp": {
+            "type": "page",
+            "title": "Help",
+            "sections": [
+                "sectionDebug"
+            ]
+        },
+        "section0": {
+            "type": "section",
+            "title": "Update preferences",
+            "keys": [
+                "refreshInterval",
+                "dailyRefreshState",
+                "selectedImagePreferences",
+                "market"
+            ]
+        },
+        "section1": {
+            "type": "section",
+            "title": "Image preferences",
+            "keys": [
+                "saveWallpaper",
+                "wallpaperDir",
+                "image-aspect-options"
+            ]
+        },
+        "sectionDebug": {
+            "type": "section",
+            "title": "Debug",
+            "keys": [
+                "debugToggle"
+            ]
+        }
+    },
     "refreshInterval": {
         "default": 720,
         "description": "Update interval to check new wallpaper",
@@ -95,5 +143,10 @@
             "spanned": "spanned",
             "wallpaper": "wallpaper"
         }
+    },
+    "debugToggle": {
+        "type": "checkbox",
+        "default": true,
+        "description": "Debug"
     }
 }

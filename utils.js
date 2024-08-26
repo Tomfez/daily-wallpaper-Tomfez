@@ -1,20 +1,19 @@
 const GLib = imports.gi.GLib;
-const logging = true;
 
 class Utils {
-
     /**
      * log
      * @param {string} message - The message to display
      */
     static log(message) {
-        if (logging) {
-            if (typeof message === 'object' && !Array.isArray(message) && message !== null) {
-                const objectJson = JSON.stringify(message);
-                global.log(objectJson);
-            } else {
-                global.log(`[bing-wallpaper@tom.dev]: ${message}`);
-            }
+        if (global.DEBUG == false)
+            return;
+
+        if (typeof message === 'object' && !Array.isArray(message) && message !== null) {
+            const objectJson = JSON.stringify(message);
+            global.log(objectJson);
+        } else {
+            global.log(`[bing-wallpaper@tom.dev]: ${message}`);
         }
     }
 
