@@ -179,7 +179,7 @@ BingWallpaperApplet.prototype = {
     if (!dir.query_exists(null))
       dir.make_directory(null);
 
-    const currentDate = this.imageData.fullstartdate;
+    const currentDate = this.imageData.enddate;
 
     let imagePath = GLib.build_filenamev([this.wallpaperDir, `BingWallpaper_${currentDate}.jpg`]);
     imagePath = Gio.file_new_for_path(imagePath);
@@ -198,12 +198,19 @@ BingWallpaperApplet.prototype = {
   getWallpaperByIndex: function (navigate) {
     switch (navigate) {
       case "next":
-        if (_idxWallpaper > 0)
+        if (_idxWallpaper > 0) {
           _idxWallpaper -= 1;
+        } else if (_idxWallpaper == 0) {
+          Utils.showDesktopNotification("Bing Desktop Wallpaper", "This is the most recent image.", "dialog-information");
+        }
         break;
       case "prev":
-        if (_idxWallpaper < 8)
+        // 7 is the maximum number of days to get the wallpapers
+        if (_idxWallpaper < 7) {
           _idxWallpaper += 1;
+        } else if (_idxWallpaper == 7) {
+          Utils.showDesktopNotification("Bing Desktop Wallpaper", "Last image. Unable to get more images.", "dialog-information");
+        }
         break;
       default:
         _idxWallpaper = 0;
@@ -241,6 +248,7 @@ BingWallpaperApplet.prototype = {
       const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
       this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
       this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
+      this.set_applet_tooltip(this.imageData.copyright);
     }
   },
 
@@ -366,13 +374,11 @@ BingWallpaperApplet.prototype = {
     const urlUHD = url.replace(regex, `_UHD.`);
 
     const process_result = () => {
-      if (this.saveWallpaper)
-        this._saveWallpaperToImageFolder();
-
+      this._saveWallpaperToImageFolder();
       this._setBackground();
     };
 
-    _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, () => process_result, () => this._setTimeout(1));
+    _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, process_result, () => this._setTimeout(1));
   },
 
   _setBackground: function () {

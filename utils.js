@@ -1,4 +1,7 @@
 const GLib = imports.gi.GLib;
+const St = imports.gi.St;
+const MessageTray = imports.ui.main.messageTray;
+const Tray = imports.ui.messageTray;
 
 class Utils {
     /**
@@ -13,8 +16,27 @@ class Utils {
             const objectJson = JSON.stringify(message);
             global.log(objectJson);
         } else {
-            global.log(`[bing-wallpaper@tom.dev]: ${message}`);
+            global.log(`[bing-wallpaper@Tomfez]: ${message}`);
         }
+    }
+
+    /**
+     * showDesktopNotification
+     * @param {string} title - Title of the notification
+     * @param {string} message - Message to display in the notification
+     * @param {string} icon_name - Type of icon (info, error, warning)
+     */
+    static showDesktopNotification(title, message, icon_name) {
+        const icon = new St.Icon({
+            icon_type: St.IconType.SYMBOLIC,
+            icon_name: icon_name,
+            icon_size: 25
+        });
+
+        const source = new Tray.SystemNotificationSource('bing-wallpaper@Tomfez');
+        MessageTray.add(source);
+        const notification = new Tray.Notification(source, title, message, { icon: icon });
+        source.notify(notification);
     }
 
     /**

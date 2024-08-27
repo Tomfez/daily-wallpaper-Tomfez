@@ -24,7 +24,6 @@
             "type": "section",
             "title": "Update preferences",
             "keys": [
-                "refreshInterval",
                 "dailyRefreshState",
                 "selectedImagePreferences",
                 "market"
@@ -43,6 +42,7 @@
             "type": "section",
             "title": "Debug",
             "keys": [
+                "refreshInterval",
                 "debugToggle"
             ]
         }
