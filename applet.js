@@ -104,7 +104,7 @@ BingWallpaperApplet.prototype = {
     this.nextRefreshPMI = new PopupMenu.PopupMenuItem("", { sensitive: false });
 
     const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
-    refreshNowPMI.connect('activate', Lang.bind(this, function () { this._refresh() }));
+    refreshNowPMI.connect('activate', Lang.bind(this, this._refresh));
 
     const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
     const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
