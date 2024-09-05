@@ -25,6 +25,7 @@
             "title": "Update preferences",
             "keys": [
                 "dailyRefreshState",
+                "currentSource",
                 "selectedImagePreferences",
                 "market"
             ]
@@ -47,6 +48,15 @@
             ]
         }
     },
+    "currentSource": {
+        "type": "combobox",
+        "default": "bing",
+        "description": "Source of images",
+        "options": {
+            "Bing": "bing",
+            "Wikimedia": "wikimedia"
+        }
+    },
     "refreshInterval": {
         "default": 720,
         "description": "Update interval to check new wallpaper",
@@ -59,7 +69,6 @@
     "saveWallpaper": {
         "default": false,
         "description": "Save wallpaper to image directory",
-        "tooltip": "Save wallpaper to image directory",
         "type": "checkbox"
     },
     "wallpaperDir": {
@@ -72,7 +81,6 @@
     "dailyRefreshState": {
         "default": true,
         "description": "Enable daily refresh",
-        "tooltip": "Enable daily refresh",
         "type": "checkbox"
     },
     "selectedImagePreferences": {
@@ -81,9 +89,9 @@
         "description": "Selected image",
         "options": {
             "Most recent": 0,
-            "Yesterday": 1
+            "Random": 1
         },
-        "tooltip": "Select prefered wallpaper when the applet is launched"
+        "tooltip": "Select the most recent image or a random image when the applet is launched"
     },
     "market": {
         "type": "combobox",

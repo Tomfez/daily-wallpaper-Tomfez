@@ -110,6 +110,15 @@ class Utils {
     }
 
     /**
+     * getRandomInt
+     * @param {number} number - Max integer
+     * @returns {number} - Returns a random number between 0 and the parameter
+     */
+    static getRandomInt(number) {
+        return Math.floor(Math.random() * number);
+    }
+
+    /**
      * getNewWallpaperDate
      * @param {string} date - The date to format (date as YYYYMMDD format)
      * @returns {GLib.DateTime} - Returns 

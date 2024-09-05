@@ -31,6 +31,8 @@ HttpSession.prototype = {
      * @returns {function} - Returns the function to call
      */
     queryMetada: function (url, callback, callbackError) {
+        Utils.log('downloading metadata from ' + url);
+
         let request = Soup.Message.new('GET', url);
 
         if (Soup.MAJOR_VERSION === 2) {
@@ -74,10 +76,12 @@ HttpSession.prototype = {
         // create a http message
         let request = Soup.Message.new('GET', url);
 
-        // keep track of total bytes written
-        let bytesTotal = 0;
+        _httpSession.set_user_agent("wikiwiki"); //for wikimedia
 
         if (Soup.MAJOR_VERSION === 2) {
+            // keep track of total bytes written
+            let bytesTotal = 0;
+
             // got_chunk event
             request.connect('got_chunk', function (message, chunk) {
                 if (message.status_code === 200) { // only save the data we want, not content of 301 redirect page
@@ -94,13 +98,13 @@ HttpSession.prototype = {
                 if (message.status_code === 200 && contentLength === bytesTotal) {
                     callback();
                 } else {
-                    Utils.log("Couldn't fetch image from " + url);
+                    Utils.log("Error " + request.get_status() + ".Couldn't fetch image from " + url);
                     gFile.delete(null);
                     callbackError();
                 }
             });
         } else { //version 3
-            _httpSession.send_and_read_async(request, Soup.MessagePriority.NORMAL, null, (httpSession, message) => {
+            _httpSession.send_and_read_async(request, Soup.MessagePriority.NORMAL, null, (_httpSession, message) => {
                 if (request.get_status() === 200) {
                     const bytes = _httpSession.send_and_read_finish(message);
 
@@ -112,7 +116,7 @@ HttpSession.prototype = {
                     Utils.log('Download successful');
                     callback();
                 } else {
-                    Utils.log("Couldn't fetch image from " + url);
+                    Utils.log("Error " + request.get_status() + ".Couldn't fetch image from " + url);
                     callbackError();
                 }
             });
