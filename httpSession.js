@@ -21,6 +21,7 @@ HttpSession.prototype = {
         } else { //version 3
             _httpSession = new Soup.Session();
         }
+        _httpSession.set_user_agent("cinnamon");
     },
 
     /**
@@ -75,8 +76,6 @@ HttpSession.prototype = {
 
         // create a http message
         let request = Soup.Message.new('GET', url);
-
-        _httpSession.set_user_agent("wikiwiki"); //for wikimedia
 
         if (Soup.MAJOR_VERSION === 2) {
             // keep track of total bytes written

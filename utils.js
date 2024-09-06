@@ -119,16 +119,6 @@ class Utils {
     }
 
     /**
-     * getNewWallpaperDate
-     * @param {string} date - The date to format (date as YYYYMMDD format)
-     * @returns {GLib.DateTime} - Returns 
-     */
-    static getNewWallpaperDate(date) {
-        const day = date.substring(date.length - 2);
-        return GLib.DateTime.new_utc(2024, 8, day, 15, 12, 30);
-    }
-
-    /**
      * getUserLanguage
      * @returns {string} - Returns the current environment language
      */

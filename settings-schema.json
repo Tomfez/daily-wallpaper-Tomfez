@@ -9,7 +9,8 @@
             "type": "page",
             "title": "General",
             "sections": [
-                "section0",
+                "sectionEnableUpdate",
+                "sectionUpdatePreferences",
                 "section1"
             ]
         },
@@ -20,11 +21,18 @@
                 "sectionDebug"
             ]
         },
-        "section0": {
+        "sectionEnableUpdate": {
             "type": "section",
+            "title": "",
+            "keys": [
+                "dailyRefreshState"
+            ]
+        },
+        "sectionUpdatePreferences": {
+            "type": "section",
+            "dependency": "dailyRefreshState",
             "title": "Update preferences",
             "keys": [
-                "dailyRefreshState",
                 "currentSource",
                 "selectedImagePreferences",
                 "market"
@@ -81,7 +89,7 @@
     "dailyRefreshState": {
         "default": true,
         "description": "Enable daily refresh",
-        "type": "checkbox"
+        "type": "switch"
     },
     "selectedImagePreferences": {
         "type": "combobox",
