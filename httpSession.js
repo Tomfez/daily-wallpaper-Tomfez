@@ -21,16 +21,16 @@ HttpSession.prototype = {
         } else { //version 3
             _httpSession = new Soup.Session();
         }
+        _httpSession.set_user_agent("cinnamon");
     },
 
     /**
      * queryMetada
      * @param {string} url - The url to call 
      * @param {function} callback - The function to call when url returns data
-     * @param {function} callbackError - The function to call when there is an error
      * @returns {function} - Returns the function to call
      */
-    queryMetada: function (url, callback, callbackError) {
+    queryMetada: function (url, callback) {
         Utils.log('downloading metadata from ' + url);
 
         let request = Soup.Message.new('GET', url);
@@ -41,7 +41,7 @@ HttpSession.prototype = {
                     callback(message.response_body.data);
                 } else {
                     Utils.log(`Failed to acquire image metadata (${message.status_code})`);
-                    callbackError();
+                    callback(false);
                 }
             });
         } else { //version 3
@@ -51,7 +51,7 @@ HttpSession.prototype = {
                     callback(ByteArray.toString(bytes.get_data()));
                 } else {
                     Utils.log(`Failed to acquire image metadata (${request.get_status()})`);
-                    callbackError();
+                    callback(false);
                 }
             });
         }
@@ -62,10 +62,9 @@ HttpSession.prototype = {
      * @param {string} url - The url to call 
      * @param {string} wallpaperPath - Path where the wallpaper is saved
      * @param {function} callback - The function to call when url returns data
-     * @param {function} callbackError - The function to call when there is an error
      * @returns {function} - Returns the function to call
      */
-    downloadImageFromUrl: function (url, wallpaperPath, callback, callbackError) {
+    downloadImageFromUrl: function (url, wallpaperPath, callback) {
         Utils.log('downloading new image from ' + url);
 
         let gFile = Gio.file_new_for_path(wallpaperPath);
@@ -75,8 +74,6 @@ HttpSession.prototype = {
 
         // create a http message
         let request = Soup.Message.new('GET', url);
-
-        _httpSession.set_user_agent("wikiwiki"); //for wikimedia
 
         if (Soup.MAJOR_VERSION === 2) {
             // keep track of total bytes written
@@ -100,7 +97,7 @@ HttpSession.prototype = {
                 } else {
                     Utils.log("Error " + request.get_status() + ".Couldn't fetch image from " + url);
                     gFile.delete(null);
-                    callbackError();
+                    callback(false);
                 }
             });
         } else { //version 3
@@ -117,7 +114,7 @@ HttpSession.prototype = {
                     callback();
                 } else {
                     Utils.log("Error " + request.get_status() + ".Couldn't fetch image from " + url);
-                    callbackError();
+                    callback(false);
                 }
             });
         }

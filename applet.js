@@ -1,5 +1,4 @@
 const { Utils } = require("./utils");
-// const { HttpSession } = require("./httpSession");
 const { Source } = require("./source");
 
 const Applet = imports.ui.applet;
@@ -18,10 +17,7 @@ const UUID = "bing-wallpaper@Tomfez";
 
 let _lastRefreshTime;
 let _nextRefresh;
-// let _httpSession = new HttpSession();
 let _idxWallpaper = 0;
-
-// const bingHost = 'https://www.bing.com';
 
 function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
     this._init(metadata, orientation, panel_height, instance_id);
@@ -53,39 +49,18 @@ BingWallpaperApplet.prototype = {
         this.metaDataPath = `${configPath}/meta.json`;
 
         this.Source = new Source(this.currentSource, this.metaDataPath, this.wallpaperPath);
-        // global.log(this.Source);
 
         let file = Gio.file_new_for_path(this.metaDataPath);
         if (!file.query_exists(null))
             file.create(Gio.FileCreateFlags.NONE, null);
 
         this.getWallpaperDatePreferences();
-
-        if (this.market === "auto") {
-            const usrLang = Utils.getUserLanguage();
-            const options = this._settings.getOptions("market");
-
-            let res = false;
-            for (let k in options) {
-                if (k === usrLang) {
-                    res = true;
-                    break;
-                }
-            }
-
-            // If language not found, we use en-US as default
-            if (!res)
-                this.market = "en-US"
-        }
+        this.initMarket();
 
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
 
         this.initMenu();
-
-
-        // const des = s.fetchWikiData();
-        // Utils.log(des);
 
         // Begin refresh loop
         this._refresh();
@@ -131,10 +106,29 @@ BingWallpaperApplet.prototype = {
         this.menu.addMenuItem(this.nextRefreshPMI);
         this.menu.addMenuItem(refreshNowPMI);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, bingHost + this.imageData.url));
+        this.menu.addAction(_("Copy image URL to clipboard"), () => Clipboard.get_default().set_text(ClipboardType.CLIPBOARD, this.Source.imageURL));
         this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
+    },
+
+    initMarket: function () {
+        if (this.market === "auto") {
+            const usrLang = Utils.getUserLanguage();
+            const options = this._settings.getOptions("market");
+
+            let res = false;
+            for (let k in options) {
+                if (k === usrLang) {
+                    res = true;
+                    break;
+                }
+            }
+
+            // If language not found, we use en-US as default
+            if (!res)
+                this.market = "en-US"
+        }
     },
 
     on_applet_clicked: function () {
@@ -160,6 +154,10 @@ BingWallpaperApplet.prototype = {
             this._refresh();
             Utils.log("daily refresh enabled");
         }
+    },
+
+    _changeCurrentSource: function () {
+        this.Source = new Source(this.currentSource, this.metaDataPath, this.wallpaperPath);
     },
 
     _updateNextRefreshTextPopup: function () {
@@ -188,9 +186,8 @@ BingWallpaperApplet.prototype = {
         if (!dir.query_exists(null))
             dir.make_directory(null);
 
-        // let imagePath = GLib.build_filenamev([this.wallpaperDir, this.Source.filename]);
-        let imagePath = Gio.file_new_for_path(this.wallpaperDir + "/" + this.Source.filename);
-        // global.log(this.wallpaperDir + "/" + this.Source.filename);
+        const filename = this.currentSource + "_" + currentDateTime.add_days(-_idxWallpaper).format("%Y%m%d") + ".jpg";
+        let imagePath = Gio.file_new_for_path(this.wallpaperDir + "/" + filename);
 
         if (!imagePath.query_exists(null)) {
             const source = Gio.file_new_for_path(this.wallpaperPath);
@@ -253,11 +250,11 @@ BingWallpaperApplet.prototype = {
             this._removeTimeout();
             this.nextRefreshPMI.setLabel("Refresh deactivated");
 
-            // this.getMetaJsonContent();
-            const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
-            this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
-            this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
-            this.set_applet_tooltip(this.imageData.copyright);
+            this.Source.getMetaDataLocal();
+
+            this.wallpaperTextPMI.setLabel(this.Source.description);
+            this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
+            this.set_applet_tooltip(this.Source.copyrights);
         }
     },
 
@@ -271,8 +268,8 @@ BingWallpaperApplet.prototype = {
     _setTimeout: function (minutes) {
         /** Cancel current timeout in event of an error and try again shortly */
         this._removeTimeout();
-        Utils.log(`Setting timeout (${minutes}min)`);
-        this._timeout = Mainloop.timeout_add_seconds(minutes * 60, this._setTimeout.bind(this, this._refresh));
+        // Utils.log(`Setting timeout (${minutes}min)`);
+        this._timeout = Mainloop.timeout_add_seconds(minutes * 60, Lang.bind(this, this._refresh));
 
         _lastRefreshTime = GLib.DateTime.new_now_local().add_seconds(minutes * 60);
         this._updateNextRefreshTextPopup();
@@ -283,13 +280,8 @@ BingWallpaperApplet.prototype = {
     _getMetaData: function () {
         try {
             /** Check for local metadata  */
-            // this.getMetaJsonContent();
-this.imageData = this.Source.imageData;
+            this.imageData = this.Source.imageData;
             this.set_applet_tooltip(this.imageData.copyright);
-
-            // const copyrightsSplit = Utils.splitCopyrightsText(this.imageData.copyright);
-            // this.wallpaperTextPMI.setLabel(copyrightsSplit[0]);
-            // this.copyrightTextPMI.setLabel(copyrightsSplit[1]);
 
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
@@ -316,7 +308,6 @@ this.imageData = this.Source.imageData;
                 let image_file = Gio.file_new_for_path(this.wallpaperPath);
 
                 if (image_file.query_exists(null)) {
-
                     let image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
                     let image_file_size = image_file_info.get_size();
                     let image_file_mod_secs = image_file_info.get_modification_time().tv_sec;
@@ -342,22 +333,17 @@ this.imageData = this.Source.imageData;
         }
     },
 
-    // getMetaJsonContent: function () {
-    //     const jsonString = GLib.file_get_contents(this.metaDataPath)[1];
-    //     const json = JSON.parse(jsonString);
-
-    //     this.imageData = json.images[0];
-    // },
-
     _downloadMetaData: function () {
         const write_file = data => {
+            global.log(data);
             this.set_applet_tooltip(this.Source.copyrights);
 
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
-            const wallpaperDate = Utils.getNewWallpaperDate(this.Source.wallpaperDate).format("%Y-%m-%d");
-            this.dayOfWallpaperPMI.setLabel(`Bing wallpaper of the day for ${wallpaperDate}`);
+            // const wallpaperDate = this.Source.wallpaperDate.format("%Y-%m-%d");
+            const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
+            this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`);
 
             this._downloadImage();
         };
@@ -368,10 +354,20 @@ this.imageData = this.Source.imageData;
         } else if (this.currentSource === "wikimedia") {
             const newDate = currentDateTime.add_days(-_idxWallpaper);
             url = newDate.format("%Y/%m/%d");
+
+            // let title = "Template:Potd/" + "2024-09-01";
+            // let params = {
+            //     "action": "query",
+            //     "format": "json",
+            //     "formatversion": "2",
+            //     "prop": "images",
+            //     "titles": title
+            // }
+            // url = "?origin=*";
+            // Object.keys(params).forEach(function (key) { url += "&" + key + "=" + params[key]; });
         }
 
-        this.Source.getMetaData(url, write_file);
-        // _httpSession.queryMetada(bingHost + bingRequestPath, process_result, () => this._setTimeout(1));
+        this.Source.getMetaData(url, write_file, () => this._setTimeout(1));
     },
 
     _downloadImage: function () {
@@ -379,9 +375,7 @@ this.imageData = this.Source.imageData;
             this._saveWallpaperToImageFolder();
             this._setBackground();
         };
-        this.Source.downloadImage(process_result);
-
-        // _httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, process_result, () => this._setTimeout(1));
+        this.Source.downloadImage(process_result, () => this._setTimeout(1));
     },
 
     _setBackground: function () {
@@ -412,7 +406,7 @@ this.imageData = this.Source.imageData;
         this._settings.bindProperty(null, "market", "market", null, null);
         this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
         this._settings.bindProperty(null, 'debugToggle', 'debug', (val) => { global.DEBUG = val; }, null);
-        this._settings.bindProperty(null, 'currentSource', 'currentSource', null, null);
+        this._settings.bindProperty(null, 'currentSource', 'currentSource', this._changeCurrentSource, null);
 
         // Tell the settings provider we want to bind one of our settings keys to an applet property.
         // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
