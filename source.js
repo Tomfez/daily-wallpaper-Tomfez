@@ -68,7 +68,7 @@ class Source {
             this.description = copyrightsSplit[0];
             this.copyrightsAutor = copyrightsSplit[1];
 
-            this.wallpaperDate = this.imageData.enddate;
+            this.wallpaperDate =  GLib.DateTime.new_from_iso8601(`${this.imageData.enddate}T220000Z`, null);
             this.url = `${this.host}${this.imageData.url}`;
             this.imageURL = this.imageData.url;
 
@@ -81,7 +81,7 @@ class Source {
                     Utils.log("no image today");
                     return;
                 }
-                this.description = this.imageData.description.text; //the description can be very long and can causes issues in the PanelMenu if too long. I prefer to keep it short here. Maybe set a max-size on the Panel ?
+                this.description = this.imageData.description.text; //the description can be very long and can causes issues in the PanelMenu if too long. Maybe set a max-size on the Panel ?
                 let descrCut = this.description.slice(0, 50) + (this.description.length > 50 ? "..." : "");
                 this.description = descrCut;
 
@@ -92,22 +92,7 @@ class Source {
                 this.copyrightsAutor = this.imageData.artist.text;
 
                 this.imageURL = this.imageData.image.source;
-                // this.wallpaperDate = 
                 // this.filename = `Wikimedia_${this.wallpaperDate}.jpg`;
-            // }
-
-            // let params = {
-            //     "action": "query",
-            //     "format": "json",
-            //     "prop": "imageinfo",
-            //     "iiprop": "url",
-            //     "titles": filename
-            // }
-
-            // let url = "?origin=*";
-            // Object.keys(params).forEach(function (key) { url += "&" + key + "=" + params[key]; });
-
-            // this.httpSession.queryMetada(this.host + url, process_result);
         }
     }
 

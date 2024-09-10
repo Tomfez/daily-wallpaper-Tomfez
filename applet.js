@@ -280,28 +280,29 @@ BingWallpaperApplet.prototype = {
     _getMetaData: function () {
         try {
             /** Check for local metadata  */
-            this.imageData = this.Source.imageData;
-            this.set_applet_tooltip(this.imageData.copyright);
+            if (this.Source.imageData === undefined)
+                this.Source.getMetaDataLocal();
+
+            this.set_applet_tooltip(this.Source.copyrights);
 
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
-            // Utils.log(`Got image url from local file : ${this.imageData.url}`);
+            if (this.Source.wallpaperDate === undefined)
+                this.Source.wallpaperDate = currentDateTime.add_days(-_idxWallpaper);
 
-            /** See if this data is current */
             const end_date = GLib.DateTime.new(
                 GLib.TimeZone.new_utc(),
-                this.imageData.enddate.substring(0, 4),
-                this.imageData.enddate.substring(4, 6),
-                this.imageData.enddate.substring(6, 8),
-                this.imageData.fullstartdate.substring(8, 10),
-                this.imageData.fullstartdate.substring(10, 12),
-                0
+                this.Source.wallpaperDate.get_year(),
+                this.Source.wallpaperDate.get_month(),
+                this.Source.wallpaperDate.get_day_of_month(),
+                23,
+                59,
+                59
             );
 
-            const now = GLib.DateTime.new_now_utc();
-
-            if (now.to_unix() < end_date.to_unix()) {
+            /** See if this data is current */
+            if (currentDateTime.to_unix() < end_date.to_unix()) {
                 Utils.log('metadata up to date');
 
                 // Look for image file, check this is up to date
@@ -321,8 +322,7 @@ BingWallpaperApplet.prototype = {
                     Utils.log("No image file found");
                     this._downloadImage();
                 }
-            }
-            else {
+            } else {
                 Utils.log('metadata is old, requesting new...');
                 this._downloadMetaData();
             }
@@ -341,7 +341,6 @@ BingWallpaperApplet.prototype = {
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
-            // const wallpaperDate = this.Source.wallpaperDate.format("%Y-%m-%d");
             const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
             this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`);
 
@@ -355,16 +354,7 @@ BingWallpaperApplet.prototype = {
             const newDate = currentDateTime.add_days(-_idxWallpaper);
             url = newDate.format("%Y/%m/%d");
 
-            // let title = "Template:Potd/" + "2024-09-01";
-            // let params = {
-            //     "action": "query",
-            //     "format": "json",
-            //     "formatversion": "2",
-            //     "prop": "images",
-            //     "titles": title
-            // }
-            // url = "?origin=*";
-            // Object.keys(params).forEach(function (key) { url += "&" + key + "=" + params[key]; });
+            this.Source.wallpaperDate = newDate;
         }
 
         this.Source.getMetaData(url, write_file, () => this._setTimeout(1));
