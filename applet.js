@@ -11,6 +11,8 @@ const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.j
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
 const Util = imports.misc.util;
 const St = imports.gi.St;
+const SignalManager = imports.misc.signalManager;
+const Clutter = imports.gi.Clutter;
 
 const currentDateTime = GLib.DateTime.new_now_local();
 const UUID = "bing-wallpaper@Tomfez";
@@ -59,6 +61,7 @@ BingWallpaperApplet.prototype = {
 
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
+        this.menuManager.addMenu(this.menu);
 
         this.initMenu();
 
@@ -67,7 +70,99 @@ BingWallpaperApplet.prototype = {
     },
 
     initMenu: function () {
-        this.menuManager.addMenu(this.menu);
+        this.prev_next_box = new St.BoxLayout(
+            {
+                style_class: "calendar-events-no-events-box",
+                vertical: false,
+                visible: true,
+                // height: 30,
+                width: 300,
+                x_align: Clutter.ActorAlign.CENTER,
+                // y_align: Clutter.ActorAlign.CENTER,
+                // y_expand: true
+            }
+        );
+
+        // this.no_events_button = new St.Button(
+        //     {
+        //         style_class: "calendar-events-no-events-button",
+        //         label: "practise",
+        //         reactive: GLib.find_program_in_path("gnome-calendar")
+        //     }
+        // );
+
+        // #region Previous button
+        this.previous_button = new St.Button({ style_class: "button", width: 150 });
+
+        this.previous_button.connect('clicked', Lang.bind(this, () => {
+            this.getWallpaperByIndex("prev");
+        }));
+        this.prev_next_box.add_actor(this.previous_button);
+
+        let button_inner_box = new St.BoxLayout({ vertical: false });
+        let previous_label = new St.Label(
+            {
+                style_class: "popup-menu-item",
+                text: _("Previous"),
+                y_align: Clutter.ActorAlign.CENTER
+            }
+        );
+
+        let previous_icon = new St.Icon(
+            {
+                style_class: "popup-menu-icon",
+                icon_name: 'go-previous-symbolic',
+                icon_type: St.IconType.SYMBOLIC,
+                // icon_size: 24
+            }
+        );
+        //#endregion
+
+        this.middle_box = new St.BoxLayout(
+            {
+                vertical: false,
+                visible: true,
+                // height: 30,
+                width: 10
+            }
+        );
+this.prev_next_box.add_actor(this.middle_box);
+
+        //#region Next button
+        this.next_button = new St.Button({ style_class: "button", width: 150 });
+
+        this.next_button.connect('clicked', Lang.bind(this, () => {
+            this.getWallpaperByIndex("next");
+        }));
+        this.prev_next_box.add_actor(this.next_button);
+
+        let next_button = new St.BoxLayout({ vertical: false });
+        let next_label = new St.Label(
+            {
+                style_class: "popup-menu-item",
+                text: _("Next"),
+                y_align: Clutter.ActorAlign.CENTER
+            }
+        );
+
+        let next_icon = new St.Icon(
+            {
+                style_class: "popup-menu-icon",
+                icon_name: 'go-next-symbolic',
+                icon_type: St.IconType.SYMBOLIC,
+                // icon_size: 24
+            }
+        );
+        //#endregion
+
+        button_inner_box.add_actor(previous_icon);
+        button_inner_box.add_actor(previous_label);
+        next_button.add_actor(next_icon);
+        next_button.add_actor(next_label);
+
+        this.previous_button.add_actor(button_inner_box);
+        this.next_button.add_actor(next_button);
+        this.prev_next_box.add_actor(this.previous_button);
 
         this.wallpaperTextPMI = new PopupMenu.PopupMenuItem("", {
             hover: false,
@@ -90,19 +185,20 @@ BingWallpaperApplet.prototype = {
         const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
         refreshNowPMI.connect('activate', Lang.bind(this, this._refresh));
 
-        const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
-        const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
+        // const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
+        // const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
 
-        prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
-        nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
+        // prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
+        // nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
 
         this.menu.addMenuItem(this.wallpaperTextPMI);
         this.menu.addMenuItem(this.copyrightTextPMI);
         this.menu.addMenuItem(this.dayOfWallpaperPMI);
+        this.menu.addActor(this.prev_next_box);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addMenuItem(prevItem);
-        this.menu.addMenuItem(nextItem);
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        // this.menu.addMenuItem(prevItem);
+        // this.menu.addMenuItem(nextItem);
+        // this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this.menu.addMenuItem(this.nextRefreshPMI);
         this.menu.addMenuItem(refreshNowPMI);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());

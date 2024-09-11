@@ -35,11 +35,6 @@ class Source {
             if (data === false) {
                 callbackError();
             } else {
-                // const json = JSON.parse(data);
-
-                // let filename = json.query.pages[0].images[0].title;
-                // this.fetch_image_src(filename);
-                // global.log(image_src);
                 // Write to meta data file
                 let gFile = Gio.file_new_for_path(this.metaDataPath);
                 let fStream = gFile.replace(null, false, Gio.FileCreateFlags.NONE, null);
