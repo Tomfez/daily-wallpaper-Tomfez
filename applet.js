@@ -2,20 +2,20 @@ const { Utils } = require("./utils");
 const { Source } = require("./source");
 
 const Applet = imports.ui.applet;
+const { Clipboard, ClipboardType } = imports.gi.St;
+const Clutter = imports.gi.Clutter;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 const Lang = imports.lang;
-const { Clipboard, ClipboardType } = imports.gi.St;
 const Mainloop = imports.mainloop;
 const PopupMenu = imports.ui.popupMenu; // /usr/share/cinnamon/js/ui/popupMenu.js
 const Settings = imports.ui.settings;   // /usr/share/cinnamon/js/ui/settings.js
-const Util = imports.misc.util;
 const St = imports.gi.St;
-const SignalManager = imports.misc.signalManager;
-const Clutter = imports.gi.Clutter;
+const Util = imports.misc.util;
 
 const currentDateTime = GLib.DateTime.new_now_local();
 const UUID = "bing-wallpaper@Tomfez";
+const ICON_SIZE = 24;
 
 let _lastRefreshTime;
 let _nextRefresh;
@@ -33,7 +33,7 @@ BingWallpaperApplet.prototype = {
         // Generic Setup
         Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
         this.set_applet_icon_symbolic_name("bing-wallpaper");
-        this.set_applet_tooltip('Bing Desktop Wallpaper');
+        this.set_applet_tooltip('Daily Desktop Wallpaper');
 
         this._bindSettings(metadata, orientation, panel_height, instance_id);
 
@@ -70,100 +70,6 @@ BingWallpaperApplet.prototype = {
     },
 
     initMenu: function () {
-        this.prev_next_box = new St.BoxLayout(
-            {
-                style_class: "calendar-events-no-events-box",
-                vertical: false,
-                visible: true,
-                // height: 30,
-                width: 300,
-                x_align: Clutter.ActorAlign.CENTER,
-                // y_align: Clutter.ActorAlign.CENTER,
-                // y_expand: true
-            }
-        );
-
-        // this.no_events_button = new St.Button(
-        //     {
-        //         style_class: "calendar-events-no-events-button",
-        //         label: "practise",
-        //         reactive: GLib.find_program_in_path("gnome-calendar")
-        //     }
-        // );
-
-        // #region Previous button
-        this.previous_button = new St.Button({ style_class: "button", width: 150 });
-
-        this.previous_button.connect('clicked', Lang.bind(this, () => {
-            this.getWallpaperByIndex("prev");
-        }));
-        this.prev_next_box.add_actor(this.previous_button);
-
-        let button_inner_box = new St.BoxLayout({ vertical: false });
-        let previous_label = new St.Label(
-            {
-                style_class: "popup-menu-item",
-                text: _("Previous"),
-                y_align: Clutter.ActorAlign.CENTER
-            }
-        );
-
-        let previous_icon = new St.Icon(
-            {
-                style_class: "popup-menu-icon",
-                icon_name: 'go-previous-symbolic',
-                icon_type: St.IconType.SYMBOLIC,
-                // icon_size: 24
-            }
-        );
-        //#endregion
-
-        this.middle_box = new St.BoxLayout(
-            {
-                vertical: false,
-                visible: true,
-                // height: 30,
-                width: 10
-            }
-        );
-this.prev_next_box.add_actor(this.middle_box);
-
-        //#region Next button
-        this.next_button = new St.Button({ style_class: "button", width: 150 });
-
-        this.next_button.connect('clicked', Lang.bind(this, () => {
-            this.getWallpaperByIndex("next");
-        }));
-        this.prev_next_box.add_actor(this.next_button);
-
-        let next_button = new St.BoxLayout({ vertical: false });
-        let next_label = new St.Label(
-            {
-                style_class: "popup-menu-item",
-                text: _("Next"),
-                y_align: Clutter.ActorAlign.CENTER
-            }
-        );
-
-        let next_icon = new St.Icon(
-            {
-                style_class: "popup-menu-icon",
-                icon_name: 'go-next-symbolic',
-                icon_type: St.IconType.SYMBOLIC,
-                // icon_size: 24
-            }
-        );
-        //#endregion
-
-        button_inner_box.add_actor(previous_icon);
-        button_inner_box.add_actor(previous_label);
-        next_button.add_actor(next_icon);
-        next_button.add_actor(next_label);
-
-        this.previous_button.add_actor(button_inner_box);
-        this.next_button.add_actor(next_button);
-        this.prev_next_box.add_actor(this.previous_button);
-
         this.wallpaperTextPMI = new PopupMenu.PopupMenuItem("", {
             hover: false,
             style_class: 'copyright-text'
@@ -185,20 +91,13 @@ this.prev_next_box.add_actor(this.middle_box);
         const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
         refreshNowPMI.connect('activate', Lang.bind(this, this._refresh));
 
-        // const prevItem = new PopupMenu.PopupIconMenuItem(_("Previous"), "go-previous-symbolic", St.IconType.SYMBOLIC, {});
-        // const nextItem = new PopupMenu.PopupIconMenuItem(_("Next"), "go-next-symbolic", St.IconType.SYMBOLIC, {});
-
-        // prevItem.connect('activate', () => { this.getWallpaperByIndex("prev") });
-        // nextItem.connect('activate', () => { this.getWallpaperByIndex("next") });
+        this.initControlsBox();
 
         this.menu.addMenuItem(this.wallpaperTextPMI);
         this.menu.addMenuItem(this.copyrightTextPMI);
         this.menu.addMenuItem(this.dayOfWallpaperPMI);
-        this.menu.addActor(this.prev_next_box);
+        this.menu.addActor(this.controlsBox);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        // this.menu.addMenuItem(prevItem);
-        // this.menu.addMenuItem(nextItem);
-        // this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this.menu.addMenuItem(this.nextRefreshPMI);
         this.menu.addMenuItem(refreshNowPMI);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -206,6 +105,108 @@ this.prev_next_box.add_actor(this.middle_box);
         this.menu.addAction(_("Open image folder"), () => Util.spawnCommandLine(`nemo ${this.wallpaperDir}`));
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this.menu.addAction(_("Settings"), () => Util.spawnCommandLine("cinnamon-settings applets " + UUID));
+    },
+
+    initControlsBox: function () {
+        this.controlsBox = new St.BoxLayout(
+            {
+                style_class: "popup-menu-item",
+                vertical: false,
+                visible: true,
+                reactive: true,
+                x_align: Clutter.ActorAlign.CENTER
+            }
+        );
+
+        // #region Previous button
+        const prevCtrlBtn = new St.Button({ style_class: "button", width: 75 });
+        prevCtrlBtn.connect('clicked', Lang.bind(this, () => this.getWallpaperByIndex("prev")));
+
+        const prevCtrlLayout = new St.BoxLayout({ vertical: false });
+
+        const prevCtrlIcon = new St.Icon(
+            {
+                style_class: "popup-menu-icon",
+                icon_name: 'go-previous-symbolic',
+                icon_type: St.IconType.SYMBOLIC,
+                x_expand: true,
+                y_expand: true,
+                icon_size: ICON_SIZE
+            }
+        );
+
+        prevCtrlLayout.add_actor(prevCtrlIcon, { span: 0 });
+        prevCtrlBtn.add_actor(prevCtrlLayout);
+        //#endregion
+
+        // #region Randomize button
+        const randCtrlBtn = new St.Button({ style_class: "button", width: 75 });
+        randCtrlBtn.connect('clicked', Lang.bind(this, () => { this.getWallpaperByIndex("rand"); }));
+
+        const randCtrlLayout = new St.BoxLayout({ vertical: false });
+
+        const randCtrlIcon = new St.Icon(
+            {
+                style_class: "popup-menu-icon",
+                icon_name: 'media-playlist-shuffle-symbolic',
+                icon_type: St.IconType.SYMBOLIC,
+                x_expand: true,
+                y_expand: true,
+                icon_size: ICON_SIZE
+            }
+        );
+
+        randCtrlLayout.add_actor(randCtrlIcon, { span: 0 });
+        randCtrlBtn.add_actor(randCtrlLayout);
+        //#endregion
+
+        //#region Next button
+        const nextCtrlBtn = new St.Button({ style_class: "button", width: 75 });
+        nextCtrlBtn.connect('clicked', Lang.bind(this, () => { this.getWallpaperByIndex("next"); }));
+
+        const nextCtrlLayout = new St.BoxLayout({ vertical: false });
+
+        const nextCtrlIcon = new St.Icon(
+            {
+                style_class: "popup-menu-icon",
+                icon_name: 'go-next-symbolic',
+                icon_type: St.IconType.SYMBOLIC,
+                x_expand: true,
+                y_expand: true,
+                icon_size: ICON_SIZE
+            }
+        );
+
+        nextCtrlLayout.add_actor(nextCtrlIcon, { span: 0 });
+        nextCtrlBtn.add_actor(nextCtrlLayout);
+        //#endregion
+
+        //#region Reset button
+        const resetCtrlBtn = new St.Button({ style_class: "button", width: 75 });
+        resetCtrlBtn.connect('clicked', Lang.bind(this, () => this.getWallpaperByIndex("reset")));
+
+        const resetCtrlLayout = new St.BoxLayout({ vertical: false });
+
+        const resetCtrlIcon = new St.Icon(
+            {
+                style_class: "popup-menu-icon",
+                icon_name: 'go-first-symbolic-rtl',
+                icon_type: St.IconType.SYMBOLIC,
+                x_expand: true,
+                y_expand: true,
+                icon_size: ICON_SIZE
+            }
+        );
+
+        resetCtrlLayout.add_actor(resetCtrlIcon, { span: 0 });
+        resetCtrlBtn.add_actor(resetCtrlLayout);
+        //#endregion
+
+        // Add all buttons to the main box
+        this.controlsBox.add_actor(prevCtrlBtn);
+        this.controlsBox.add_actor(randCtrlBtn);
+        this.controlsBox.add_actor(nextCtrlBtn);
+        this.controlsBox.add_actor(resetCtrlBtn);
     },
 
     initMarket: function () {
@@ -313,6 +314,11 @@ this.prev_next_box.add_actor(this.middle_box);
                     Utils.showDesktopNotification("Bing Desktop Wallpaper", "Last image. Unable to get more images.", "dialog-information");
                 }
                 break;
+            case "rand":
+                const rand = Utils.getRandomInt(7);
+                _idxWallpaper = rand;
+                break;
+            case "reset":
             default:
                 _idxWallpaper = 0;
                 break;
@@ -431,14 +437,14 @@ this.prev_next_box.add_actor(this.middle_box);
 
     _downloadMetaData: function () {
         const write_file = data => {
-            global.log(data);
             this.set_applet_tooltip(this.Source.copyrights);
 
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
             const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
-            this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`);
+            const source = this.currentSource.charAt(0).toUpperCase() + this.currentSource.slice(1);
+            this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${source} for ${wallpaperDate}`);
 
             this._downloadImage();
         };
