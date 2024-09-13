@@ -16,7 +16,7 @@ class Utils {
             const objectJson = JSON.stringify(message);
             global.log(objectJson);
         } else {
-            global.log(`[bing-wallpaper@Tomfez]: ${message}`);
+            global.log(`[daily-wallpaper@Tomfez]: ${message}`);
         }
     }
 
@@ -33,7 +33,7 @@ class Utils {
             icon_size: 25
         });
 
-        const source = new Tray.SystemNotificationSource('bing-wallpaper@Tomfez');
+        const source = new Tray.SystemNotificationSource('daily-wallpaper@Tomfez');
         MessageTray.add(source);
         const notification = new Tray.Notification(source, title, message, { icon: icon });
         source.notify(notification);
@@ -60,11 +60,14 @@ class Utils {
     static formatFolderName(wallpaperDir) {
         if (wallpaperDir.startsWith("file://")) {
             wallpaperDir = wallpaperDir.slice("file://".length);
-
-            // Removes '%' and return a valid path with accents
-            wallpaperDir = decodeURIComponent(wallpaperDir);
-            this.log("new wall dir: " + wallpaperDir);
+        } else if (wallpaperDir.startsWith("~")) {
+            const homeDir = GLib.getenv("HOME");
+            wallpaperDir = wallpaperDir.replace("~", homeDir);
         }
+
+        // Removes '%' and return a valid path with accents
+        wallpaperDir = decodeURIComponent(wallpaperDir);
+        this.log("new wall dir: " + wallpaperDir);
 
         return wallpaperDir;
     }

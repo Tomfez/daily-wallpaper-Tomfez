@@ -14,18 +14,18 @@ const St = imports.gi.St;
 const Util = imports.misc.util;
 
 const currentDateTime = GLib.DateTime.new_now_local();
-const UUID = "bing-wallpaper@Tomfez";
+const UUID = "daily-wallpaper@Tomfez";
 const ICON_SIZE = 24;
 
 let _lastRefreshTime;
 let _nextRefresh;
 let _idxWallpaper = 0;
 
-function BingWallpaperApplet(metadata, orientation, panel_height, instance_id) {
+function DailyWallpaperApplet(metadata, orientation, panel_height, instance_id) {
     this._init(metadata, orientation, panel_height, instance_id);
 }
 
-BingWallpaperApplet.prototype = {
+DailyWallpaperApplet.prototype = {
     __proto__: Applet.IconApplet.prototype,
 
     //#region Init
@@ -80,7 +80,7 @@ BingWallpaperApplet.prototype = {
         });
 
         let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
-        let wallpaperDayText = `Bing wallpaper of the day for ${wallpaperDateFormatted}`;
+        let wallpaperDayText = `Daily wallpaper of the day for ${wallpaperDateFormatted}`;
         this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
             hover: false,
             style_class: 'text-popupmenu'
@@ -303,7 +303,7 @@ BingWallpaperApplet.prototype = {
                 if (_idxWallpaper > 0) {
                     _idxWallpaper -= 1;
                 } else if (_idxWallpaper == 0) {
-                    Utils.showDesktopNotification("Bing Desktop Wallpaper", "This is the most recent image.", "dialog-information");
+                    Utils.showDesktopNotification("Daily Desktop Wallpaper", "This is the most recent image.", "dialog-information");
                 }
                 break;
             case "prev":
@@ -311,7 +311,7 @@ BingWallpaperApplet.prototype = {
                 if (_idxWallpaper < 7) {
                     _idxWallpaper += 1;
                 } else if (_idxWallpaper == 7) {
-                    Utils.showDesktopNotification("Bing Desktop Wallpaper", "Last image. Unable to get more images.", "dialog-information");
+                    Utils.showDesktopNotification("Daily Desktop Wallpaper", "Last image. Unable to get more images.", "dialog-information");
                 }
                 break;
             case "rand":
@@ -331,7 +331,12 @@ BingWallpaperApplet.prototype = {
     getWallpaperDatePreferences: function () {
         switch (this.selectedImagePreferences) {
             case 1:
-                const rand = Utils.getRandomInt(7);
+                let rand = _idxWallpaper;
+
+                while (rand === _idxWallpaper) {
+                    rand = Utils.getRandomInt(7);
+                }
+
                 _idxWallpaper = rand;
                 break;
             default:
@@ -404,7 +409,7 @@ BingWallpaperApplet.prototype = {
             );
 
             /** See if this data is current */
-            if (currentDateTime.to_unix() < end_date.to_unix()) {
+            if ((currentDateTime.to_unix() < end_date.to_unix()) && this.selectedImagePreferences === 0) {
                 Utils.log('metadata up to date');
 
                 // Look for image file, check this is up to date
@@ -513,5 +518,5 @@ BingWallpaperApplet.prototype = {
 
 
 function main(metadata, orientation, panelHeight, instanceId) {
-    return new BingWallpaperApplet(metadata, orientation, panelHeight, instanceId);
+    return new DailyWallpaperApplet(metadata, orientation, panelHeight, instanceId);
 }

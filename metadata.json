@@ -1,7 +1,7 @@
 {
-    "author": "Tom",
-    "description": "Download and apply Today's Bing Wallpaper to your desktop",
+    "author": "Tomfez",
+    "description": "Download and apply today's Bing and Wikimedia wallpaper to your desktop",
     "last-edited": 1720142418,
-    "name": "Bing Desktop Wallpaper copie",
-    "uuid": "bing-wallpaper@Tomfez"
+    "name": "Daily Desktop Wallpaper",
+    "uuid": "daily-wallpaper@Tomfez"
 }

@@ -6,7 +6,6 @@ const GLib = imports.gi.GLib;
 
 class Source {
     constructor(source, metaDataPath, wallpaperPath) {
-        this.url;
         this.imageData;
         this.copyrightsAutor;
         this.copyrights;
@@ -64,8 +63,7 @@ class Source {
             this.copyrightsAutor = copyrightsSplit[1];
 
             this.wallpaperDate =  GLib.DateTime.new_from_iso8601(`${this.imageData.enddate}T220000Z`, null);
-            this.url = `${this.host}${this.imageData.url}`;
-            this.imageURL = this.imageData.url;
+            this.imageURL = `${this.host}${this.imageData.url}`;
 
             // const currentDate = this.imageData.enddate;
             // this.filename = `BingWallpaper_${currentDate}.jpg`;
@@ -102,7 +100,7 @@ class Source {
         if (this.source === "bing") {
             //If metadata ok, we download the image
             const regex = /_\d+x\d+./gm;
-            const urlUHD = this.url.replace(regex, `_UHD.`);
+            const urlUHD = this.imageURL.replace(regex, `_UHD.`);
             this.httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, res);
         } else {
             this.httpSession.downloadImageFromUrl(this.imageURL, this.wallpaperPath, res);
