@@ -216,7 +216,7 @@ DailyWallpaperApplet.prototype = {
 
             let res = false;
             for (let k in options) {
-                if (k === usrLang) {
+                if (options[k] === usrLang) {
                     res = true;
                     break;
                 }
