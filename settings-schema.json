@@ -83,7 +83,7 @@
     "wallpaperNamePreferences": {
         "default": 1,
         "dependency": "saveWallpaper",
-        "description": "Choose the file name when saved to the image directory",
+        "description": "Name of the file when saved to the image directory",
         "type": "combobox",
         "tooltip": "Original: original file name.\nCustom: source name + date (ex: BingWallpaper_20240801.jpg)",
         "options": {
@@ -93,6 +93,7 @@
     },
     "wallpaperDir": {
         "default": "~/.config/bingwallpaper",
+        "dependency": "saveWallpaper",
         "description": "Image directory",
         "select-dir": true,
         "tooltip": "For example: /home/username/Pictures/wallpapers",
@@ -117,6 +118,7 @@
         "type": "combobox",
         "default": "auto",
         "description": "Bing locale",
+        "dependency": "currentSource=Bing",
         "options": {
             "auto-auto": "auto",
             "da-DK, Denmark, Danish": "da-DK",
@@ -164,12 +166,12 @@
         "default": "zoom",
         "description": "Image aspect",
         "options": {
-            "zoom": "zoom",
-            "centered": "centered",
-            "scaled": "scaled",
-            "stretched": "stretched",
-            "spanned": "spanned",
-            "wallpaper": "wallpaper"
+            "Zoom": "zoom",
+            "Centered": "centered",
+            "Scaled": "scaled",
+            "Stretched": "stretched",
+            "Spanned": "spanned",
+            "Mosaic": "mosaic"
         }
     },
     "debugToggle": {

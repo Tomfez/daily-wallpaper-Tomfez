@@ -33,9 +33,9 @@ DailyWallpaperApplet.prototype = {
         // Generic Setup
         Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
         this.set_applet_icon_symbolic_name("bing-wallpaper");
-        this.set_applet_tooltip('Daily Desktop Wallpaper');
+        this.set_applet_tooltip(_('Daily Desktop Wallpaper'));
 
-        this._bindSettings(metadata, orientation, panel_height, instance_id);
+        this._bindSettings(metadata, instance_id);
 
         global.DEBUG = this.debug;
 
@@ -69,6 +69,20 @@ DailyWallpaperApplet.prototype = {
         this._refresh();
     },
 
+    _bindSettings: function (metadata, instance_id) {
+        this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
+        this._settings.bindProperty(null, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
+        this._settings.bindProperty(null, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
+        this._settings.bindProperty(null, "wallpaperNamePreferences", "wallpaperNamePreferences", null, null);
+        this._settings.bindProperty(null, "refreshInterval", "refreshInterval", this._refresh, null);
+        this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
+        this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
+        this._settings.bindProperty(null, "market", "market", null, null);
+        this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
+        this._settings.bindProperty(null, 'debugToggle', 'debug', (val) => { global.DEBUG = val; }, null);
+        this._settings.bindProperty(null, 'currentSource', 'currentSource', this._changeCurrentSource, null);
+    },
+
     initMenu: function () {
         this.wallpaperTextPMI = new PopupMenu.PopupMenuItem("", {
             hover: false,
@@ -80,7 +94,7 @@ DailyWallpaperApplet.prototype = {
         });
 
         const wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
-        const wallpaperDayText = `Daily wallpaper of the day for ${wallpaperDateFormatted}`;
+        const wallpaperDayText = (_(`Daily wallpaper of the day for ${wallpaperDateFormatted}`));
         this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
             hover: false,
             style_class: 'text-popupmenu'
@@ -88,7 +102,7 @@ DailyWallpaperApplet.prototype = {
 
         this.nextRefreshPMI = new PopupMenu.PopupMenuItem("", { sensitive: false });
 
-        const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
+        const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh"));
         refreshNowPMI.connect('activate', Lang.bind(this, this._refresh));
 
         this.initControlsBox();
@@ -308,7 +322,7 @@ DailyWallpaperApplet.prototype = {
                 if (_idxWallpaper > 0) {
                     _idxWallpaper -= 1;
                 } else if (_idxWallpaper == 0) {
-                    Utils.showDesktopNotification("Daily Desktop Wallpaper", "This is the most recent image.", "dialog-information");
+                    Utils.showDesktopNotification(_("This is the most recent image."), "dialog-information");
                 }
                 break;
             case "prev":
@@ -316,7 +330,7 @@ DailyWallpaperApplet.prototype = {
                 if (_idxWallpaper < 7) {
                     _idxWallpaper += 1;
                 } else if (_idxWallpaper == 7) {
-                    Utils.showDesktopNotification("Daily Desktop Wallpaper", "Last image. Unable to get more images.", "dialog-information");
+                    Utils.showDesktopNotification(_("Last image. Unable to get more images."), "dialog-information");
                 }
                 break;
             case "rand":
@@ -360,7 +374,7 @@ DailyWallpaperApplet.prototype = {
         } else {
             Utils.log("Timeout removed");
             this._removeTimeout();
-            this.nextRefreshPMI.setLabel("Refresh deactivated");
+            this.nextRefreshPMI.setLabel(_("Refresh deactivated"));
 
             this.Source.getMetaDataLocal();
 
@@ -413,8 +427,6 @@ DailyWallpaperApplet.prototype = {
                 59
             );
 
-            //TODO: check if image is still present before download
-
             /** See if this data is current */
             if ((currentDateTime.to_unix() < end_date.to_unix()) && this.selectedImagePreferences === 0) {
                 Utils.log('metadata up to date');
@@ -455,7 +467,7 @@ DailyWallpaperApplet.prototype = {
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
             const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
-            this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`);
+            this.dayOfWallpaperPMI.setLabel(_(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`));
 
             this._downloadImage();
         };
@@ -489,37 +501,7 @@ DailyWallpaperApplet.prototype = {
         gSetting.set_string('picture-options', this.pictureOptions);
         Gio.Settings.sync();
         gSetting.apply();
-    },
-    //#endregion
-
-    // #region -- Settings --
-
-    _bindSettings: function (metadata, orientation, panel_height, instance_id) {
-
-        // Reference: https://github.com/linuxmint/Cinnamon/wiki/Applet,-Desklet-and-Extension-Settings-Reference
-
-        // Create the settings object
-        // In this case we use another way to get the uuid, the metadata object.
-        this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
-        this._settings.bindProperty(null, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
-        this._settings.bindProperty(null, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
-        this._settings.bindProperty(null, "wallpaperNamePreferences", "wallpaperNamePreferences", null, null);
-        this._settings.bindProperty(null, "refreshInterval", "refreshInterval", this._refresh, null);
-        this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
-        this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
-        this._settings.bindProperty(null, "market", "market", null, null);
-        this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
-        this._settings.bindProperty(null, 'debugToggle', 'debug', (val) => { global.DEBUG = val; }, null);
-        this._settings.bindProperty(null, 'currentSource', 'currentSource', this._changeCurrentSource, null);
-
-        // Tell the settings provider we want to bind one of our settings keys to an applet property.
-        // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
-        //     'settings-test-scale',                     // The key of the UI control associated with the setting in the "settings-schema.json" file.
-        //     'settings-test-scale',                     // Name that is going to be used as the applet property.
-        //     this.onSettingsChanged,                    // Method to be called when the setting value changes.
-        //     null                                       // Optional - it can be left off entirely, or used to pass any extra object to the callback if desired.
-        // );
-    },
+    }
     //#endregion
 };
 

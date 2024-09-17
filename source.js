@@ -73,7 +73,7 @@ class Source {
             this.imageData = json.image;
 
             if (this.imageData.length === 0) {
-                Utils.log("no image today");
+                Utils.showDesktopNotification(_("No image today."), "dialog-information");
                 return;
             }
             this.description = this.imageData.description.text; //the description can be very long and can causes issues in the PanelMenu if too long. Maybe set a max-size on the Panel ?
