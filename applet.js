@@ -52,7 +52,7 @@ DailyWallpaperApplet.prototype = {
 
         this.Source = new Source(this.currentSource, this.metaDataPath, this.wallpaperPath);
 
-        let file = Gio.file_new_for_path(this.metaDataPath);
+        const file = Gio.file_new_for_path(this.metaDataPath);
         if (!file.query_exists(null))
             file.create(Gio.FileCreateFlags.NONE, null);
 
@@ -79,8 +79,8 @@ DailyWallpaperApplet.prototype = {
             sensitive: false,
         });
 
-        let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
-        let wallpaperDayText = `Daily wallpaper of the day for ${wallpaperDateFormatted}`;
+        const wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
+        const wallpaperDayText = `Daily wallpaper of the day for ${wallpaperDateFormatted}`;
         this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
             hover: false,
             style_class: 'text-popupmenu'
@@ -278,13 +278,18 @@ DailyWallpaperApplet.prototype = {
         if (!this.saveWallpaper)
             return;
 
-        let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
+        const dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
 
         if (!dir.query_exists(null))
             dir.make_directory(null);
 
-        const filename = this.currentSource + "_" + currentDateTime.add_days(-_idxWallpaper).format("%Y%m%d") + ".jpg";
-        let imagePath = Gio.file_new_for_path(this.wallpaperDir + "/" + filename);
+        let filename = this.Source.filename;
+        if (this.wallpaperNamePreferences === 1) {
+            // this.checkExtension();
+            filename = this.currentSource + "Wallpaper_" + currentDateTime.add_days(-_idxWallpaper).format("%Y%m%d") + ".jpg";
+        }
+
+        const imagePath = Gio.file_new_for_path(this.wallpaperDir + "/" + filename);
 
         if (!imagePath.query_exists(null)) {
             const source = Gio.file_new_for_path(this.wallpaperPath);
@@ -408,17 +413,19 @@ DailyWallpaperApplet.prototype = {
                 59
             );
 
+            //TODO: check if image is still present before download
+
             /** See if this data is current */
             if ((currentDateTime.to_unix() < end_date.to_unix()) && this.selectedImagePreferences === 0) {
                 Utils.log('metadata up to date');
 
                 // Look for image file, check this is up to date
-                let image_file = Gio.file_new_for_path(this.wallpaperPath);
+                const image_file = Gio.file_new_for_path(this.wallpaperPath);
 
                 if (image_file.query_exists(null)) {
-                    let image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
-                    let image_file_size = image_file_info.get_size();
-                    let image_file_mod_secs = image_file_info.get_modification_time().tv_sec;
+                    const image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
+                    const image_file_size = image_file_info.get_size();
+                    const image_file_mod_secs = image_file_info.get_modification_time().tv_sec;
 
                     if ((image_file_mod_secs > end_date.to_unix()) || !image_file_size) { // Is the image old, or empty?
                         this._downloadImage();
@@ -448,16 +455,15 @@ DailyWallpaperApplet.prototype = {
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
             const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
-            const source = this.currentSource.charAt(0).toUpperCase() + this.currentSource.slice(1);
-            this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${source} for ${wallpaperDate}`);
+            this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`);
 
             this._downloadImage();
         };
 
         let url = "";
-        if (this.currentSource === "bing") {
+        if (this.currentSource === "Bing") {
             url = `/HPImageArchive.aspx?format=js&idx=${_idxWallpaper}&n=1&mbl=1&mkt=${this.market}`;
-        } else if (this.currentSource === "wikimedia") {
+        } else if (this.currentSource === "Wikimedia") {
             const newDate = currentDateTime.add_days(-_idxWallpaper);
             url = newDate.format("%Y/%m/%d");
 
@@ -477,7 +483,7 @@ DailyWallpaperApplet.prototype = {
 
     _setBackground: function () {
         Utils.log("setting background");
-        let gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
+        const gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
         const uri = 'file://' + this.wallpaperPath;
         gSetting.set_string('picture-uri', uri);
         gSetting.set_string('picture-options', this.pictureOptions);
@@ -497,6 +503,7 @@ DailyWallpaperApplet.prototype = {
         this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
         this._settings.bindProperty(null, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
         this._settings.bindProperty(null, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
+        this._settings.bindProperty(null, "wallpaperNamePreferences", "wallpaperNamePreferences", null, null);
         this._settings.bindProperty(null, "refreshInterval", "refreshInterval", this._refresh, null);
         this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
         this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
