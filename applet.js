@@ -78,6 +78,7 @@ DailyWallpaperApplet.prototype = {
         this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
         this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
         this._settings.bindProperty(null, "market", "market", null, null);
+        this._settings.bindProperty(null, "apiKey", "apiKey", null, null);
         this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
         this._settings.bindProperty(null, 'debugToggle', 'debug', (val) => { global.DEBUG = val; }, null);
         this._settings.bindProperty(null, 'currentSource', 'currentSource', this._changeCurrentSource, null);
@@ -409,38 +410,37 @@ DailyWallpaperApplet.prototype = {
             if (this.Source.imageData === undefined)
                 this.Source.getMetaDataLocal();
 
-            this.set_applet_tooltip(this.Source.copyrights);
-
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
-            if (this.Source.wallpaperDate === undefined)
+            if (this.Source.wallpaperDate === undefined || this.Source.wallpaperDate === "")
                 this.Source.wallpaperDate = currentDateTime.add_days(-_idxWallpaper);
 
-            const end_date = GLib.DateTime.new(
-                GLib.TimeZone.new_utc(),
-                this.Source.wallpaperDate.get_year(),
-                this.Source.wallpaperDate.get_month(),
-                this.Source.wallpaperDate.get_day_of_month(),
-                23,
-                59,
-                59
-            );
+            const metadataFile = Gio.file_new_for_path(this.metaDataPath);
 
             /** See if this data is current */
-            if ((currentDateTime.to_unix() < end_date.to_unix()) && this.selectedImagePreferences === 0) {
-                Utils.log('metadata up to date');
+            if (metadataFile.query_exists(null) && this.selectedImagePreferences === 0) {
+                const endDate = GLib.DateTime.new(
+                    GLib.TimeZone.new_utc(),
+                    this.Source.wallpaperDate.get_year(),
+                    this.Source.wallpaperDate.get_month(),
+                    this.Source.wallpaperDate.get_day_of_month(),
+                    23,
+                    59,
+                    59
+                )
 
                 // Look for image file, check this is up to date
                 const image_file = Gio.file_new_for_path(this.wallpaperPath);
 
                 if (image_file.query_exists(null)) {
                     const image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
+                    const image_file_mod_secs = image_file_info.get_modification_date_time();
                     const image_file_size = image_file_info.get_size();
-                    const image_file_mod_secs = image_file_info.get_modification_time().tv_sec;
 
-                    if ((image_file_mod_secs > end_date.to_unix()) || !image_file_size) { // Is the image old, or empty?
-                        this._downloadImage();
+                    if ((image_file_mod_secs.to_unix() > endDate.to_unix()) || !image_file_size) { // Is the image old, or empty?
+                        Utils.log('image is old, downloading new metadata');
+                        this._downloadMetaData();
                     } else {
                         Utils.log("image appears up to date");
                     }
@@ -478,8 +478,10 @@ DailyWallpaperApplet.prototype = {
         } else if (this.currentSource === "Wikimedia") {
             const newDate = currentDateTime.add_days(-_idxWallpaper);
             url = newDate.format("%Y/%m/%d");
-
-            this.Source.wallpaperDate = newDate;
+        } else if (this.currentSource === "APOD") {
+            let date = currentDateTime.add_days(-_idxWallpaper);
+            date =  date.format("%Y-%m-%d");
+            url = `${this.apiKey}&date=${date}`;
         }
 
         this.Source.getMetaData(url, write_file, () => this._setTimeout(1));

@@ -35,7 +35,8 @@
             "keys": [
                 "currentSource",
                 "selectedImagePreferences",
-                "market"
+                "market",
+                "apiKey"
             ]
         },
         "section1": {
@@ -63,7 +64,8 @@
         "description": "Source of images",
         "options": {
             "Bing": "Bing",
-            "Wikimedia": "Wikimedia"
+            "Wikimedia": "Wikimedia",
+            "APOD": "APOD"
         }
     },
     "refreshInterval": {
@@ -160,6 +162,13 @@
             "zh-HK, Hong Kong SAR, Traditional Chinese": "zh-HK",
             "zh-TW, Taiwan, Traditional Chinese": "zh-TW"
         }
+    },
+    "apiKey": {
+        "type": "entry",
+        "default": "DEMO_KEY",
+        "description": "API key",
+        "dependency": "currentSource=APOD",
+        "tooltip": "Set your API key for APOD API. The default API key is used for initially exploring APIs prior to signing up, but it has much lower rate limits."
     },
     "image-aspect-options": {
         "type": "combobox",
