@@ -94,7 +94,7 @@
         }
     },
     "wallpaperDir": {
-        "default": "~/.config/bingwallpaper",
+        "default": "~/.config/dailywallpaper",
         "dependency": "saveWallpaper",
         "description": "Image directory",
         "select-dir": true,

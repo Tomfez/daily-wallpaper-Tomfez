@@ -418,27 +418,15 @@ DailyWallpaperApplet.prototype = {
 
             const metadataFile = Gio.file_new_for_path(this.metaDataPath);
 
-            /** See if this data is current */
             if (metadataFile.query_exists(null) && this.selectedImagePreferences === 0) {
-                const endDate = GLib.DateTime.new(
-                    GLib.TimeZone.new_utc(),
-                    this.Source.wallpaperDate.get_year(),
-                    this.Source.wallpaperDate.get_month(),
-                    this.Source.wallpaperDate.get_day_of_month(),
-                    23,
-                    59,
-                    59
-                )
-
                 // Look for image file, check this is up to date
                 const image_file = Gio.file_new_for_path(this.wallpaperPath);
 
                 if (image_file.query_exists(null)) {
                     const image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
-                    const image_file_mod_secs = image_file_info.get_modification_date_time();
                     const image_file_size = image_file_info.get_size();
 
-                    if ((image_file_mod_secs.to_unix() > endDate.to_unix()) || !image_file_size) { // Is the image old, or empty?
+                    if ((this.Source.wallpaperDate.get_day_of_year() < currentDateTime.get_day_of_year()) || !image_file_size) { // Is the image old, or empty?
                         Utils.log('image is old, downloading new metadata');
                         this._downloadMetaData();
                     } else {
