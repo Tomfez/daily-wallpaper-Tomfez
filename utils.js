@@ -26,7 +26,7 @@ class Utils {
      * @param {string} message - Message to display in the notification
      * @param {string} icon_name - Type of icon (info, error, warning)
      */
-    static showDesktopNotification(title, message, icon_name) {
+    static showDesktopNotification(message, icon_name) {
         const icon = new St.Icon({
             icon_type: St.IconType.SYMBOLIC,
             icon_name: icon_name,
@@ -35,7 +35,7 @@ class Utils {
 
         const source = new Tray.SystemNotificationSource('daily-wallpaper@Tomfez');
         MessageTray.add(source);
-        const notification = new Tray.Notification(source, title, message, { icon: icon });
+        const notification = new Tray.Notification(source, "Daily Desktop Wallpaper", message, { icon: icon });
         source.notify(notification);
     }
 

@@ -19,10 +19,13 @@ class Source {
         this.httpSession = new HttpSession();
 
         switch (source) {
-            case "wikimedia":
-                this.host = `https://api.wikimedia.org/feed/v1/wikipedia/en/featured/`;
+            case "Wikimedia":
+                this.host = "https://api.wikimedia.org/feed/v1/wikipedia/en/featured/";
                 break;
-            case "bing":
+                case "APOD":
+                    this.host = "https://api.nasa.gov/planetary/apod?api_key=";
+                    break;
+            case "Bing":
             default:
                 this.host = "https://www.bing.com";
                 break;
@@ -47,6 +50,7 @@ class Source {
             }
         };
 
+        this.wallpaperDate = "";
         this.httpSession.queryMetada(this.host + url, writeFile);
     }
 
@@ -54,7 +58,7 @@ class Source {
         const data = GLib.file_get_contents(this.metaDataPath)[1];
         const json = JSON.parse(data);
 
-        if (this.source === "bing") {
+        if (this.source === "Bing") {
             this.imageData = json.images[0];
 
             this.copyrights = this.imageData.copyright;
@@ -62,30 +66,49 @@ class Source {
             this.description = copyrightsSplit[0];
             this.copyrightsAutor = copyrightsSplit[1];
 
-            this.wallpaperDate =  GLib.DateTime.new_from_iso8601(`${this.imageData.enddate}T220000Z`, null);
+            this.wallpaperDate = GLib.DateTime.new_from_iso8601(`${this.imageData.enddate}T220000Z`, null);
             this.imageURL = `${this.host}${this.imageData.url}`;
 
-            // const currentDate = this.imageData.enddate;
-            // this.filename = `BingWallpaper_${currentDate}.jpg`;
-        } else {
-                this.imageData = json.image;
+            const fileUrl = this.imageData.urlbase;
+            const regex = "([A-Za-z]+)_";
+            const matchRes = fileUrl.match(regex);
+            this.filename = `${matchRes[1]}.jpg`;
+        } else if (this.source === "Wikimedia") {
+            this.imageData = json.image;
 
-                if (this.imageData.length === 0) {
-                    Utils.log("no image today");
-                    return;
-                }
-                this.description = this.imageData.description.text; //the description can be very long and can causes issues in the PanelMenu if too long. Maybe set a max-size on the Panel ?
-                let descrCut = this.description.slice(0, 50) + (this.description.length > 50 ? "..." : "");
-                this.description = descrCut;
+            if (this.imageData.length === 0) {
+                Utils.showDesktopNotification(_("No image today."), "dialog-information");
+                return;
+            }
+            
+            this.description = this.imageData.description.text; //the description can be very long and can causes issues in the PanelMenu if too long. Maybe set a max-size on the Panel ?
+            const descrCut = this.description.slice(0, 50) + (this.description.length > 50 ? "..." : "");
+            this.description = descrCut;
 
-                //TODO: Set an option to choose between original filename or filename with a date
-                let title = this.imageData.title.split(":");
-                title = title[1].substring(0, title[1].lastIndexOf('.')); // removes the extension in the filename
-                this.copyrights = title;
-                this.copyrightsAutor = this.imageData.artist.text;
+            let title = this.imageData.title.split(":");
+            title = title[1].substring(0, title[1].lastIndexOf('.')); // removes the extension in the filename
+            this.copyrights = title;
+            this.copyrightsAutor = this.imageData.artist.text;
 
-                this.imageURL = this.imageData.image.source;
-                // this.filename = `Wikimedia_${this.wallpaperDate}.jpg`;
+            this.imageURL = this.imageData.image.source;
+            const fileTitle = this.imageData.title;
+            const idx = fileTitle.search(":");
+            this.filename = fileTitle.slice(idx + 1);
+        } else if (this.source === "APOD"){
+            if(json.media_type !== "image"){
+                Utils.showDesktopNotification(_("No image today."), "dialog-information");
+                return;
+            }
+
+            this.wallpaperDate = GLib.DateTime.new_from_iso8601(`${json.date}T220000Z`, null);
+            this.description = json.title;
+            this.imageURL = json.hdurl;
+            this.copyrightsAutor = json.copyright === undefined ? "Nasa" : json.copyright;
+            this.copyrights = json.title + this.copyrightsAutor;
+
+            const idx = json.hdurl.lastIndexOf('/');
+            const filename = json.hdurl.slice(idx + 1);
+            this.filename = filename;
         }
     }
 
@@ -97,8 +120,7 @@ class Source {
                 callback();
         }
 
-        if (this.source === "bing") {
-            //If metadata ok, we download the image
+        if (this.source === "Bing") {
             const regex = /_\d+x\d+./gm;
             const urlUHD = this.imageURL.replace(regex, `_UHD.`);
             this.httpSession.downloadImageFromUrl(urlUHD, this.wallpaperPath, res);

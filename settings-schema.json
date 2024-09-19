@@ -35,7 +35,8 @@
             "keys": [
                 "currentSource",
                 "selectedImagePreferences",
-                "market"
+                "market",
+                "apiKey"
             ]
         },
         "section1": {
@@ -43,6 +44,7 @@
             "title": "Image preferences",
             "keys": [
                 "saveWallpaper",
+                "wallpaperNamePreferences",
                 "wallpaperDir",
                 "image-aspect-options"
             ]
@@ -58,11 +60,12 @@
     },
     "currentSource": {
         "type": "combobox",
-        "default": "bing",
+        "default": "Bing",
         "description": "Source of images",
         "options": {
-            "Bing": "bing",
-            "Wikimedia": "wikimedia"
+            "Bing": "Bing",
+            "Wikimedia": "Wikimedia",
+            "APOD": "APOD"
         }
     },
     "refreshInterval": {
@@ -79,8 +82,20 @@
         "description": "Save wallpaper to image directory",
         "type": "checkbox"
     },
+    "wallpaperNamePreferences": {
+        "default": 1,
+        "dependency": "saveWallpaper",
+        "description": "Name of the file when saved to the image directory",
+        "type": "combobox",
+        "tooltip": "Original: original file name.\nCustom: source name + date (ex: BingWallpaper_20240801.jpg)",
+        "options": {
+            "Original": 0,
+            "Custom": 1
+        }
+    },
     "wallpaperDir": {
         "default": "~/.config/bingwallpaper",
+        "dependency": "saveWallpaper",
         "description": "Image directory",
         "select-dir": true,
         "tooltip": "For example: /home/username/Pictures/wallpapers",
@@ -105,59 +120,67 @@
         "type": "combobox",
         "default": "auto",
         "description": "Bing locale",
+        "dependency": "currentSource=Bing",
         "options": {
             "auto-auto": "auto",
-            "da-DK": "da-DK",
-            "de-AT": "de-AT",
-            "de-CH": "de-CH",
-            "de-DE": "de-DE",
-            "en-AU": "en-AU",
-            "en-CA": "en-CA",
-            "en-GB": "en-GB",
-            "en-ID": "en-ID",
-            "en-IN": "en-IN",
-            "en-MY": "en-MY",
-            "en-NZ": "en-NZ",
-            "en-PH": "en-PH",
-            "en-US": "en-US",
-            "en-ZA": "en-ZA",
-            "es-AR": "es-AR",
-            "es-CL": "es-CL",
-            "es-ES": "es-ES",
-            "es-MX": "es-MX",
-            "es-US": "es-US",
-            "fi-FI": "fi-FI",
-            "fr-BE": "fr-BE",
-            "fr-CA": "fr-CA",
-            "fr-CH": "fr-CH",
-            "fr-FR": "fr-FR",
-            "it-IT": "it-IT",
-            "ja-JP": "ja-JP",
-            "ko-KR": "ko-KR",
-            "nl-BE": "nl-BE",
-            "nl-NL": "nl-NL",
-            "no-NO": "no-NO",
-            "pl-PL": "pl-PL",
-            "pt-BR": "pt-BR",
-            "ru-RU": "ru-RU",
-            "sv-SE": "sv-SE",
-            "tr-TR": "tr-TR",
-            "zh-CN": "zh-CN",
-            "zh-HK": "zh-HK",
-            "zh-TW": "zh-TW"
+            "da-DK, Denmark, Danish": "da-DK",
+            "de-AT, Austria, German": "de-AT",
+            "de-CH, Switzerland, German": "de-CH",
+            "de-DE, Germany, German": "de-DE",
+            "en-AU, Australia, English": "en-AU",
+            "en-CA, Canada, English": "en-CA",
+            "en-GB, United Kingdom, English": "en-GB",
+            "en-ID, Indonesia, English": "en-ID",
+            "en-IN, India, English": "en-IN",
+            "en-MY, Malaysia, English": "en-MY",
+            "en-NZ, New Zealand, English": "en-NZ",
+            "en-PH, Republic of the Philippines, English": "en-PH",
+            "en-US, United States, English": "en-US",
+            "en-ZA, South Africa, English": "en-ZA",
+            "es-AR, Argentina, Spanish": "es-AR",
+            "es-CL, Chile, Spanish": "es-CL",
+            "es-ES, Spain, Spanish": "es-ES",
+            "es-MX, Mexico, Spanish": "es-MX",
+            "es-US, United States, Spanish": "es-US",
+            "fi-FI, Finland, Finnish": "fi-FI",
+            "fr-BE, Belgium, French": "fr-BE",
+            "fr-CA, Canada, French": "fr-CA",
+            "fr-CH, Switzerland, French": "fr-CH",
+            "fr-FR, France, French": "fr-FR",
+            "it-IT, Italy, Italian": "it-IT",
+            "ja-JP, Japan, Japanese": "ja-JP",
+            "ko-KR, Korea, Korean": "ko-KR",
+            "nl-BE, Belgium, Dutch": "nl-BE",
+            "nl-NL, Netherlands, Dutch": "nl-NL",
+            "no-NO, Norway, Norwegian": "no-NO",
+            "pl-PL, Poland, Polish": "pl-PL",
+            "pt-BR, Brazil, Portuguese": "pt-BR",
+            "ru-RU, Russia, Russian": "ru-RU",
+            "sv-SE, Sweden, Swedish": "sv-SE",
+            "tr-TR, Türkiye, Turkish": "tr-TR",
+            "zh-CN, People's republic of China, Chinese": "zh-CN",
+            "zh-HK, Hong Kong SAR, Traditional Chinese": "zh-HK",
+            "zh-TW, Taiwan, Traditional Chinese": "zh-TW"
         }
+    },
+    "apiKey": {
+        "type": "entry",
+        "default": "DEMO_KEY",
+        "description": "API key",
+        "dependency": "currentSource=APOD",
+        "tooltip": "Set your API key for APOD API. The default API key is used for initially exploring APIs prior to signing up, but it has much lower rate limits."
     },
     "image-aspect-options": {
         "type": "combobox",
         "default": "zoom",
         "description": "Image aspect",
         "options": {
-            "zoom": "zoom",
-            "centered": "centered",
-            "scaled": "scaled",
-            "stretched": "stretched",
-            "spanned": "spanned",
-            "wallpaper": "wallpaper"
+            "Zoom": "zoom",
+            "Centered": "centered",
+            "Scaled": "scaled",
+            "Stretched": "stretched",
+            "Spanned": "spanned",
+            "Mosaic": "mosaic"
         }
     },
     "debugToggle": {

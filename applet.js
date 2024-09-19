@@ -33,9 +33,9 @@ DailyWallpaperApplet.prototype = {
         // Generic Setup
         Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
         this.set_applet_icon_symbolic_name("bing-wallpaper");
-        this.set_applet_tooltip('Daily Desktop Wallpaper');
+        this.set_applet_tooltip(_('Daily Desktop Wallpaper'));
 
-        this._bindSettings(metadata, orientation, panel_height, instance_id);
+        this._bindSettings(metadata, instance_id);
 
         global.DEBUG = this.debug;
 
@@ -52,7 +52,7 @@ DailyWallpaperApplet.prototype = {
 
         this.Source = new Source(this.currentSource, this.metaDataPath, this.wallpaperPath);
 
-        let file = Gio.file_new_for_path(this.metaDataPath);
+        const file = Gio.file_new_for_path(this.metaDataPath);
         if (!file.query_exists(null))
             file.create(Gio.FileCreateFlags.NONE, null);
 
@@ -69,6 +69,21 @@ DailyWallpaperApplet.prototype = {
         this._refresh();
     },
 
+    _bindSettings: function (metadata, instance_id) {
+        this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
+        this._settings.bindProperty(null, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
+        this._settings.bindProperty(null, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
+        this._settings.bindProperty(null, "wallpaperNamePreferences", "wallpaperNamePreferences", null, null);
+        this._settings.bindProperty(null, "refreshInterval", "refreshInterval", this._refresh, null);
+        this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
+        this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
+        this._settings.bindProperty(null, "market", "market", null, null);
+        this._settings.bindProperty(null, "apiKey", "apiKey", null, null);
+        this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
+        this._settings.bindProperty(null, 'debugToggle', 'debug', (val) => { global.DEBUG = val; }, null);
+        this._settings.bindProperty(null, 'currentSource', 'currentSource', this._changeCurrentSource, null);
+    },
+
     initMenu: function () {
         this.wallpaperTextPMI = new PopupMenu.PopupMenuItem("", {
             hover: false,
@@ -79,8 +94,8 @@ DailyWallpaperApplet.prototype = {
             sensitive: false,
         });
 
-        let wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
-        let wallpaperDayText = `Daily wallpaper of the day for ${wallpaperDateFormatted}`;
+        const wallpaperDateFormatted = currentDateTime.format("%Y-%m-%d");
+        const wallpaperDayText = (_(`Daily wallpaper of the day for ${wallpaperDateFormatted}`));
         this.dayOfWallpaperPMI = new PopupMenu.PopupMenuItem(wallpaperDayText, {
             hover: false,
             style_class: 'text-popupmenu'
@@ -88,7 +103,7 @@ DailyWallpaperApplet.prototype = {
 
         this.nextRefreshPMI = new PopupMenu.PopupMenuItem("", { sensitive: false });
 
-        const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh now"));
+        const refreshNowPMI = new PopupMenu.PopupMenuItem(_("Refresh"));
         refreshNowPMI.connect('activate', Lang.bind(this, this._refresh));
 
         this.initControlsBox();
@@ -216,7 +231,7 @@ DailyWallpaperApplet.prototype = {
 
             let res = false;
             for (let k in options) {
-                if (k === usrLang) {
+                if (options[k] === usrLang) {
                     res = true;
                     break;
                 }
@@ -278,13 +293,18 @@ DailyWallpaperApplet.prototype = {
         if (!this.saveWallpaper)
             return;
 
-        let dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
+        const dir = Gio.file_new_for_path(`${this.wallpaperDir}`);
 
         if (!dir.query_exists(null))
             dir.make_directory(null);
 
-        const filename = this.currentSource + "_" + currentDateTime.add_days(-_idxWallpaper).format("%Y%m%d") + ".jpg";
-        let imagePath = Gio.file_new_for_path(this.wallpaperDir + "/" + filename);
+        let filename = this.Source.filename;
+        if (this.wallpaperNamePreferences === 1) {
+            // this.checkExtension();
+            filename = this.currentSource + "Wallpaper_" + currentDateTime.add_days(-_idxWallpaper).format("%Y%m%d") + ".jpg";
+        }
+
+        const imagePath = Gio.file_new_for_path(this.wallpaperDir + "/" + filename);
 
         if (!imagePath.query_exists(null)) {
             const source = Gio.file_new_for_path(this.wallpaperPath);
@@ -303,7 +323,7 @@ DailyWallpaperApplet.prototype = {
                 if (_idxWallpaper > 0) {
                     _idxWallpaper -= 1;
                 } else if (_idxWallpaper == 0) {
-                    Utils.showDesktopNotification("Daily Desktop Wallpaper", "This is the most recent image.", "dialog-information");
+                    Utils.showDesktopNotification(_("This is the most recent image."), "dialog-information");
                 }
                 break;
             case "prev":
@@ -311,7 +331,7 @@ DailyWallpaperApplet.prototype = {
                 if (_idxWallpaper < 7) {
                     _idxWallpaper += 1;
                 } else if (_idxWallpaper == 7) {
-                    Utils.showDesktopNotification("Daily Desktop Wallpaper", "Last image. Unable to get more images.", "dialog-information");
+                    Utils.showDesktopNotification(_("Last image. Unable to get more images."), "dialog-information");
                 }
                 break;
             case "rand":
@@ -355,7 +375,7 @@ DailyWallpaperApplet.prototype = {
         } else {
             Utils.log("Timeout removed");
             this._removeTimeout();
-            this.nextRefreshPMI.setLabel("Refresh deactivated");
+            this.nextRefreshPMI.setLabel(_("Refresh deactivated"));
 
             this.Source.getMetaDataLocal();
 
@@ -390,38 +410,37 @@ DailyWallpaperApplet.prototype = {
             if (this.Source.imageData === undefined)
                 this.Source.getMetaDataLocal();
 
-            this.set_applet_tooltip(this.Source.copyrights);
-
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
-            if (this.Source.wallpaperDate === undefined)
+            if (this.Source.wallpaperDate === undefined || this.Source.wallpaperDate === "")
                 this.Source.wallpaperDate = currentDateTime.add_days(-_idxWallpaper);
 
-            const end_date = GLib.DateTime.new(
-                GLib.TimeZone.new_utc(),
-                this.Source.wallpaperDate.get_year(),
-                this.Source.wallpaperDate.get_month(),
-                this.Source.wallpaperDate.get_day_of_month(),
-                23,
-                59,
-                59
-            );
+            const metadataFile = Gio.file_new_for_path(this.metaDataPath);
 
             /** See if this data is current */
-            if ((currentDateTime.to_unix() < end_date.to_unix()) && this.selectedImagePreferences === 0) {
-                Utils.log('metadata up to date');
+            if (metadataFile.query_exists(null) && this.selectedImagePreferences === 0) {
+                const endDate = GLib.DateTime.new(
+                    GLib.TimeZone.new_utc(),
+                    this.Source.wallpaperDate.get_year(),
+                    this.Source.wallpaperDate.get_month(),
+                    this.Source.wallpaperDate.get_day_of_month(),
+                    23,
+                    59,
+                    59
+                )
 
                 // Look for image file, check this is up to date
-                let image_file = Gio.file_new_for_path(this.wallpaperPath);
+                const image_file = Gio.file_new_for_path(this.wallpaperPath);
 
                 if (image_file.query_exists(null)) {
-                    let image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
-                    let image_file_size = image_file_info.get_size();
-                    let image_file_mod_secs = image_file_info.get_modification_time().tv_sec;
+                    const image_file_info = image_file.query_info('*', Gio.FileQueryInfoFlags.NONE, null);
+                    const image_file_mod_secs = image_file_info.get_modification_date_time();
+                    const image_file_size = image_file_info.get_size();
 
-                    if ((image_file_mod_secs > end_date.to_unix()) || !image_file_size) { // Is the image old, or empty?
-                        this._downloadImage();
+                    if ((image_file_mod_secs.to_unix() > endDate.to_unix()) || !image_file_size) { // Is the image old, or empty?
+                        Utils.log('image is old, downloading new metadata');
+                        this._downloadMetaData();
                     } else {
                         Utils.log("image appears up to date");
                     }
@@ -448,20 +467,21 @@ DailyWallpaperApplet.prototype = {
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
             const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
-            const source = this.currentSource.charAt(0).toUpperCase() + this.currentSource.slice(1);
-            this.dayOfWallpaperPMI.setLabel(`Wallpaper of the day at ${source} for ${wallpaperDate}`);
+            this.dayOfWallpaperPMI.setLabel(_(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`));
 
             this._downloadImage();
         };
 
         let url = "";
-        if (this.currentSource === "bing") {
+        if (this.currentSource === "Bing") {
             url = `/HPImageArchive.aspx?format=js&idx=${_idxWallpaper}&n=1&mbl=1&mkt=${this.market}`;
-        } else if (this.currentSource === "wikimedia") {
+        } else if (this.currentSource === "Wikimedia") {
             const newDate = currentDateTime.add_days(-_idxWallpaper);
             url = newDate.format("%Y/%m/%d");
-
-            this.Source.wallpaperDate = newDate;
+        } else if (this.currentSource === "APOD") {
+            let date = currentDateTime.add_days(-_idxWallpaper);
+            date =  date.format("%Y-%m-%d");
+            url = `${this.apiKey}&date=${date}`;
         }
 
         this.Source.getMetaData(url, write_file, () => this._setTimeout(1));
@@ -477,42 +497,13 @@ DailyWallpaperApplet.prototype = {
 
     _setBackground: function () {
         Utils.log("setting background");
-        let gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
+        const gSetting = new Gio.Settings({ schema: 'org.cinnamon.desktop.background' });
         const uri = 'file://' + this.wallpaperPath;
         gSetting.set_string('picture-uri', uri);
         gSetting.set_string('picture-options', this.pictureOptions);
         Gio.Settings.sync();
         gSetting.apply();
-    },
-    //#endregion
-
-    // #region -- Settings --
-
-    _bindSettings: function (metadata, orientation, panel_height, instance_id) {
-
-        // Reference: https://github.com/linuxmint/Cinnamon/wiki/Applet,-Desklet-and-Extension-Settings-Reference
-
-        // Create the settings object
-        // In this case we use another way to get the uuid, the metadata object.
-        this._settings = new Settings.AppletSettings(this, metadata.uuid, instance_id);
-        this._settings.bindProperty(null, "wallpaperDir", "wallpaperDir", this.setWallpaperDirectory, null);
-        this._settings.bindProperty(null, "saveWallpaper", "saveWallpaper", () => this._saveWallpaperToImageFolder, null);
-        this._settings.bindProperty(null, "refreshInterval", "refreshInterval", this._refresh, null);
-        this._settings.bindProperty(null, "dailyRefreshState", "dailyRefreshState", this.on_toggle_enableDailyrefreshPSMI, null);
-        this._settings.bindProperty(null, "selectedImagePreferences", "selectedImagePreferences", null, null);
-        this._settings.bindProperty(null, "market", "market", null, null);
-        this._settings.bindProperty(null, "image-aspect-options", "pictureOptions", this._setBackground, null);
-        this._settings.bindProperty(null, 'debugToggle', 'debug', (val) => { global.DEBUG = val; }, null);
-        this._settings.bindProperty(null, 'currentSource', 'currentSource', this._changeCurrentSource, null);
-
-        // Tell the settings provider we want to bind one of our settings keys to an applet property.
-        // this._settings.bindProperty(Settings.BindingDirection.IN,   // The binding direction - IN means we only listen for changes from this applet.
-        //     'settings-test-scale',                     // The key of the UI control associated with the setting in the "settings-schema.json" file.
-        //     'settings-test-scale',                     // Name that is going to be used as the applet property.
-        //     this.onSettingsChanged,                    // Method to be called when the setting value changes.
-        //     null                                       // Optional - it can be left off entirely, or used to pass any extra object to the callback if desired.
-        // );
-    },
+    }
     //#endregion
 };
 
