@@ -1,11 +1,27 @@
-# Bing Desktop Wallpaper for Cinnamon
+# Daily desktop wallpaper for Cinnamon
 
-A Cinnamon applet to apply the daily Bing Wallpaper to your Cinnamon Desktop Background
+A Cinnamon applet to apply a daily wallpaper to your Cinnamon Desktop Background.
 
-Inspired by the [Gnome Shell extension](https://github.com/neffo/bing-wallpaper-gnome-extension)
+Inspired by the [Bing extension](https://github.com/linuxmint/cinnamon-spices-applets/tree/8e808be8c81a9264a3a5a6985a5b44df1053f6ce/bing-wallpaper%40starcross.dev) made by [@Starcross](https://github.com/Starcross).
 
-The Bing Image of the Day will be downloaded, and applied as the Desktop Background. A new image should appear each day, as soon as it becomes available.
+The point of making this applet was to give some parameters to let the user save the wallpaper in a desired directory and browse previous wallpapers like the official Bing desktop application for Windows.
 
-The resolution used is 4k or greater (UHD). This will give the best quality and can be resized by Cinnamon (change the Picture aspect in Backgrounds -> Settings if needed) 
+By default, each day the new wallpaper will be downloaded from the source and applied as the desktop background. You can turn off the daily update if you want to keep the current desktop wallpaper.
 
-Bing is a trademark of Microsoft, and the Copyright for the Images belongs to the individual owners; use is restricted to wallpaper only. This software has no affiliation with Microsoft or Bing.  
+The resolution used is the maximum found from each source. This will give the best quality and can be resized by Cinnamon (change the Picture aspect in Backgrounds -> Settings if needed) 
+
+Currently there is 3 sources :
+ - Bing
+ - APOD
+ - Wikimedia
+
+# Functionnalities
+- Turn On/Off daily update
+- Choose your own directory for saving the wallpapers (default is "~/.config/dailywallpaper")
+- Get the most recent or a random wallpaper each time the applet refresh
+- Change the timer to check for a new wallpaper (default is 12h)
+- Browse previous wallpapers (up to 7 days which is the maximum you can go with Bing) 
+
+# TODO
+- Add screenshots
+- Translate all text
