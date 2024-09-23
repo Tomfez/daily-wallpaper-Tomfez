@@ -56,6 +56,10 @@ class Source {
 
     getMetaDataLocal() {
         const data = GLib.file_get_contents(this.metaDataPath)[1];
+
+        if (data.length === 0)
+            return;
+
         const json = JSON.parse(data);
 
         if (this.source === "Bing") {

@@ -6,145 +6,152 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-09-19 11:34+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2024-09-23 10:18+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.2\n"
 
 #: metadata.json->name
 msgid "Daily desktop wallpaper"
-msgstr ""
+msgstr "Fond d'écran quotidien"
 
 #: metadata.json->description
 msgid "Download and apply a daily wallpaper to your desktop"
-msgstr ""
+msgstr "Télécharge et applique un fond d'écran quotidiennement"
 
 #: settings-schema.json->layout->pageHelp->title
 msgid "Help"
-msgstr ""
+msgstr "Aide"
 
 #: settings-schema.json->dailyRefreshState->description
 msgid "Enable daily refresh"
-msgstr ""
+msgstr "Activer l'actualisation quotidienne"
 
 #: settings-schema.json->layout->sectionUpdatePreferences->title
 msgid "Update preferences"
-msgstr ""
+msgstr "Préférences de mise à jour"
 
 #: settings-schema.json->layout->section1->title
 msgid "Image preferences"
-msgstr ""
+msgstr "Préférences de l'image"
 
 #: settings-schema.json->currentSource->description
 msgid "Source of images"
-msgstr ""
+msgstr "Source des images"
 
 #: settings-schema.json->refreshInterval->description
 msgid "Update interval to check new wallpaper"
-msgstr ""
+msgstr "Mettre à jour l'intervalle de recherche de nouveau fond d'écran"
 
 #: settings-schema.json->saveWallpaper->description
 msgid "Save wallpaper to image directory"
-msgstr ""
+msgstr "Sauvegarder le fond d'écran dans le répertoire de l'image"
 
 #: settings-schema.json->wallpaperNamePreferences->description
 msgid "Name of the file when saved to the image directory"
-msgstr ""
+msgstr "Nom du fichier lorsqu'il est enregistré dans le dossier de l'image"
 
 #: settings-schema.json->wallpaperNamePreferences->tooltip
-msgid "Original: original file name.\nCustom: source name + date (ex: BingWallpaper_20240801.jpg)"
+msgid ""
+"Original: original file name.\n"
+"Custom: source name + date (ex: BingWallpaper_20240801.jpg)"
 msgstr ""
+"Original: nom du fichier original.\n"
+"Personnalisé: nom de la source + date (ex:BingWallpaper_20240801.jpg)"
 
 #: settings-schema.json->wallpaperDir->description
 msgid "Image directory"
-msgstr ""
+msgstr "Répertoire de l'image"
 
 #: settings-schema.json->wallpaperDir->tooltip
 msgid "For example: /home/username/Pictures/wallpapers"
-msgstr ""
-
-#: settings-schema.json->dailyRefreshState->description
-msgid "Enable daily refresh"
-msgstr ""
+msgstr "Par exemple: /home/username/Images/wallpapers"
 
 #: settings-schema.json->selectedImagePreferences->description
 msgid "Selected image"
-msgstr ""
+msgstr "Image sélectionnée"
 
 #: settings-schema.json->selectedImagePreferences->tooltip
-msgid "Select the most recent image or a random image when the applet is launched"
+msgid ""
+"Select the most recent image or a random image when the applet is launched"
 msgstr ""
+"Sélectionner l'image la plus récente ou une image aléatoire lorsque l'applet "
+"est démarrée"
 
 #. References the Bing market (can be found here https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/reference/market-codes)
 #: settings-schema.json->market->description
 msgid "Bing locale"
-msgstr ""
+msgstr "Emplacement pour Bing"
 
 #: settings-schema.json->apiKey->description
 msgid "API key"
-msgstr ""
+msgstr "Clé API"
 
 #: settings-schema.json->apiKey->tooltip
-msgid "Set your API key for APOD API. The default API key is used for initially exploring APIs prior to signing up, but it has much lower rate limits."
+msgid ""
+"Set your API key for APOD API. The default API key is used for initially "
+"exploring APIs prior to signing up, but it has much lower rate limits."
 msgstr ""
+"Ajouter votre clé API pour l'APOD. La clé API par défaut est utilisée à des "
+"fins d'exploration des autres APIs avant l'inscription. Cependant les taux "
+"ont une limite bien plus faibles."
 
 #: settings-schema.json->image-aspect-options->description
 msgid "Image aspect"
-msgstr ""
+msgstr "Aspect de l'image"
 
 #: settings-schema.json->debugToggle->description
 msgid "Debug"
-msgstr ""
+msgstr "Debug"
 
 #: settings-schema.json->selectedImagePreferences->options->Most recent
 msgid "Most recent"
-msgstr ""
+msgstr "Plus récente"
 
 #: settings-schema.json->wallpaperNamePreferences->options->Original
 msgid "Original"
-msgstr ""
+msgstr "Original"
 
 #: applet.js:109
 msgid "Daily wallpaper of the day for %s"
-msgstr ""
+msgstr "Fond d'écran quotidien du %s"
 
 #: applet.js:130
 msgid "Copy image URL to clipboard"
-msgstr ""
+msgstr "Copier l'URL de l'image vers le presse-papiers"
 
 #: applet.js:131
 msgid "Open image folder"
-msgstr ""
+msgstr "Ouvrir le répertoire de l'image"
 
 #: applet.js:290
 msgid "Next refresh"
-msgstr ""
+msgstr "Prochaine actualisation"
 
 #: applet.js:336
 msgid "This is the most recent image."
-msgstr ""
+msgstr "L'image est déjà la plus récente."
 
 #: applet.js:344
 msgid "Last image. Unable to get more images."
-msgstr ""
+msgstr "Dernière image. Impossible d'obtenir plus d'images."
 
 #: applet.js:388
 msgid "Refresh deactivated"
-msgstr ""
+msgstr "Actualisation désactivée"
 
-#: applet.js:448
-#: applet.js:475
+#: applet.js:448 applet.js:475
 #, javascript-format
 msgid "Wallpaper of the day at %s for %s"
-msgstr ""
+msgstr "Fond d'écran du jour de %s du %s"
 
-#: source.js:84
-#: source.js:103
+#: source.js:84 source.js:103
 msgid "No image today."
-msgstr ""
+msgstr "Pas d'image aujourd'hui."

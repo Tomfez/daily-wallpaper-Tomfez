@@ -4,6 +4,7 @@ const { Source } = require("./source");
 const Applet = imports.ui.applet;
 const { Clipboard, ClipboardType } = imports.gi.St;
 const Clutter = imports.gi.Clutter;
+const Gettext = imports.gettext;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 const Lang = imports.lang;
@@ -21,6 +22,16 @@ let _lastRefreshTime;
 let _nextRefresh;
 let _idxWallpaper = 0;
 
+Gettext.bindtextdomain(UUID, GLib.get_home_dir() + "/.local/share/locale")
+function _(str) {
+    const customTrans = Gettext.dgettext(UUID, str);
+
+    if (customTrans !== str && customTrans !== "")
+        return customTrans;
+
+    return Gettext.gettext(str);
+}
+
 function DailyWallpaperApplet(metadata, orientation, panel_height, instance_id) {
     this._init(metadata, orientation, panel_height, instance_id);
 }
@@ -32,15 +43,15 @@ DailyWallpaperApplet.prototype = {
     _init: function (metadata, orientation, panel_height, instance_id) {
         // Generic Setup
         Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
-        this.set_applet_icon_symbolic_name("bing-wallpaper");
-        this.set_applet_tooltip(_('Daily Desktop Wallpaper'));
+        this.set_applet_icon_symbolic_name("bing-wallpaper"); //TODO: change icon
+        this.set_applet_tooltip(_('Daily desktop wallpaper'));
 
         this._bindSettings(metadata, instance_id);
 
         global.DEBUG = this.debug;
 
         // We use this directory to store the current wallpaper and metadata
-        const configPath = `${GLib.get_user_config_dir()}/bingwallpaper`;
+        const configPath = `${GLib.get_user_config_dir()}/dailywallpaper`;
 
         const configPathObj = Gio.file_new_for_path(configPath);
 
@@ -285,7 +296,6 @@ DailyWallpaperApplet.prototype = {
     },
 
     setWallpaperDirectory: function () {
-        Utils.log(this.wallpaperDir);
         this.wallpaperDir = Utils.formatFolderName(this.wallpaperDir);
     },
 
@@ -430,6 +440,14 @@ DailyWallpaperApplet.prototype = {
                         Utils.log('image is old, downloading new metadata');
                         this._downloadMetaData();
                     } else {
+                        this.set_applet_tooltip(this.Source.copyrights);
+                        this.wallpaperTextPMI.setLabel(this.Source.description);
+                        this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
+
+                        const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
+                        const labelText = _("Wallpaper of the day at %s for %s").format(this.currentSource, wallpaperDate);
+
+                        this.dayOfWallpaperPMI.setLabel(labelText);
                         Utils.log("image appears up to date");
                     }
                 } else {
@@ -450,13 +468,13 @@ DailyWallpaperApplet.prototype = {
     _downloadMetaData: function () {
         const write_file = data => {
             this.set_applet_tooltip(this.Source.copyrights);
-
             this.wallpaperTextPMI.setLabel(this.Source.description);
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
             const wallpaperDate = currentDateTime.add_days(-_idxWallpaper).format("%Y-%m-%d");
-            this.dayOfWallpaperPMI.setLabel(_(`Wallpaper of the day at ${this.currentSource} for ${wallpaperDate}`));
+            const labelText = _("Wallpaper of the day at %s for %s").format(this.currentSource, wallpaperDate);
 
+            this.dayOfWallpaperPMI.setLabel(labelText);
             this._downloadImage();
         };
 
@@ -468,7 +486,7 @@ DailyWallpaperApplet.prototype = {
             url = newDate.format("%Y/%m/%d");
         } else if (this.currentSource === "APOD") {
             let date = currentDateTime.add_days(-_idxWallpaper);
-            date =  date.format("%Y-%m-%d");
+            date = date.format("%Y-%m-%d");
             url = `${this.apiKey}&date=${date}`;
         }
 
