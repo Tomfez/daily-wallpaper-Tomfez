@@ -22,9 +22,9 @@ class Source {
             case "Wikimedia":
                 this.host = "https://api.wikimedia.org/feed/v1/wikipedia/en/featured/";
                 break;
-                case "APOD":
-                    this.host = "https://api.nasa.gov/planetary/apod?api_key=";
-                    break;
+            case "APOD":
+                this.host = "https://api.nasa.gov/planetary/apod?api_key=";
+                break;
             case "Bing":
             default:
                 this.host = "https://www.bing.com";
@@ -70,7 +70,6 @@ class Source {
             this.description = copyrightsSplit[0];
             this.copyrightsAutor = copyrightsSplit[1];
 
-            this.wallpaperDate = GLib.DateTime.new_from_iso8601(`${this.imageData.enddate}T220000Z`, null);
             this.imageURL = `${this.host}${this.imageData.url}`;
 
             const fileUrl = this.imageData.urlbase;
@@ -84,7 +83,7 @@ class Source {
                 Utils.showDesktopNotification(_("No image today."), "dialog-information");
                 return;
             }
-            
+
             this.description = this.imageData.description.text; //the description can be very long and can causes issues in the PanelMenu if too long. Maybe set a max-size on the Panel ?
             const descrCut = this.description.slice(0, 50) + (this.description.length > 50 ? "..." : "");
             this.description = descrCut;
@@ -98,13 +97,12 @@ class Source {
             const fileTitle = this.imageData.title;
             const idx = fileTitle.search(":");
             this.filename = fileTitle.slice(idx + 1);
-        } else if (this.source === "APOD"){
-            if(json.media_type !== "image"){
+        } else if (this.source === "APOD") {
+            if (json.media_type !== "image") {
                 Utils.showDesktopNotification(_("No image today."), "dialog-information");
                 return;
             }
 
-            this.wallpaperDate = GLib.DateTime.new_from_iso8601(`${json.date}T220000Z`, null);
             this.description = json.title;
             this.imageURL = json.hdurl;
             this.copyrightsAutor = json.copyright === undefined ? "Nasa" : json.copyright;
@@ -131,6 +129,16 @@ class Source {
         } else {
             this.httpSession.downloadImageFromUrl(this.imageURL, this.wallpaperPath, res);
         }
+    }
+
+    getWallpaperDate() {
+        const data = GLib.file_get_contents(this.metaDataPath)[1];
+        const json = JSON.parse(data);
+
+        if (this.source === "Bing")
+            this.wallpaperDate = GLib.DateTime.new_from_iso8601(`${json.images[0].enddate}T220000Z`, null);
+        else if (this.source === "APOD")
+            this.wallpaperDate = GLib.DateTime.new_from_iso8601(`${json.date}T220000Z`, null);
     }
 }
 

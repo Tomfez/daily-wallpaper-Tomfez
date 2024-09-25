@@ -424,7 +424,7 @@ DailyWallpaperApplet.prototype = {
             this.copyrightTextPMI.setLabel(this.Source.copyrightsAutor);
 
             if (this.Source.wallpaperDate === undefined || this.Source.wallpaperDate === "")
-                this.Source.wallpaperDate = currentDateTime.add_days(-_idxWallpaper);
+                this.Source.getWallpaperDate();
 
             const metadataFile = Gio.file_new_for_path(this.metaDataPath);
 
