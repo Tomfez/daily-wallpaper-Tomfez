@@ -43,7 +43,7 @@ DailyWallpaperApplet.prototype = {
     _init: function (metadata, orientation, panel_height, instance_id) {
         // Generic Setup
         Applet.IconApplet.prototype._init.call(this, orientation, panel_height, instance_id);
-        this.set_applet_icon_symbolic_name("bing-wallpaper"); //TODO: change icon
+        this.set_applet_icon_symbolic_name("appicon");
         this.set_applet_tooltip(_('Daily desktop wallpaper'));
 
         this._bindSettings(metadata, instance_id);
